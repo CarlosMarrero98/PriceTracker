@@ -19,13 +19,16 @@ Aplicación para monitorizar el precio de productos (como zapatillas) en una tie
 
 ```bash
 pip install poetry
+```
 
 2. Instala las dependencias del proyecto:
 
 ```bash
 poetry install
+```
 
 3. Activa el entorno virtual:
 
 ```bash
 poetry shell
+```
