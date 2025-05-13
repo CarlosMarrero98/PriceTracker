@@ -64,6 +64,12 @@ Para ejecutarlos localmente:
 poetry run pytest
 ```
 
+Para ejecutarlos en el entorno de Poetry:
+
+```bash
+pytest
+```
+
 ---
 
 ## Integración continua
