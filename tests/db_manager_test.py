@@ -3,6 +3,7 @@ import sqlite3
 import pytest
 from bot.db_manager import DatabaseManager
 
+
 @pytest.fixture
 def db_temp():
     # Creamos una base de datos temporal en memoria o archivo
@@ -13,6 +14,7 @@ def db_temp():
     if os.path.exists(db_path):
         os.remove(db_path)
 
+
 def test_tablas_creadas(db_temp):
     tablas_esperadas = {"usuarios", "productos_seguidos", "historial_precios"}
 
@@ -22,6 +24,7 @@ def test_tablas_creadas(db_temp):
         tablas_creadas = {fila[0] for fila in cursor.fetchall()}
 
     assert tablas_esperadas.issubset(tablas_creadas)
+
 
 def test_agregar_usuario_inserta_correctamente(db_temp):
     chat_id = "123456"
@@ -54,3 +57,57 @@ def test_agregar_usuario_no_duplica_si_existe(db_temp):
         count = cursor.fetchone()[0]
 
     assert count == 1
+
+
+def test_agregar_producto_inserta_correctamente(db_temp):
+    chat_id = "123456"
+    symbol = "AAPL"
+    nombre_empresa = "Apple Inc."
+    intervalo = 30
+    limite_inf = 100.0
+    limite_sup = 200.0
+
+    db_temp.agregar_producto(
+        chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup
+    )
+
+    with sqlite3.connect(db_temp.db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT chat_id, symbol, nombre_empresa, intervalo_min, limite_inferior, limite_superior
+            FROM productos_seguidos
+            WHERE chat_id = ? AND symbol = ?
+        """,
+            (chat_id, symbol),
+        )
+        fila = cursor.fetchone()
+
+    assert fila == (chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup)
+
+
+def test_agregar_producto_reemplaza_si_existe(db_temp):
+    chat_id = "123456"
+    symbol = "AAPL"
+
+    # Inserción inicial
+    db_temp.agregar_producto(chat_id, symbol, "Apple Inc.", 15, 100.0, 200.0)
+
+    # Inserción que debería reemplazar
+    db_temp.agregar_producto(
+        chat_id, symbol, "Apple Inc. Actualizado", 60, 120.0, 180.0
+    )
+
+    with sqlite3.connect(db_temp.db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT nombre_empresa, intervalo_min, limite_inferior, limite_superior
+            FROM productos_seguidos
+            WHERE chat_id = ? AND symbol = ?
+        """,
+            (chat_id, symbol),
+        )
+        fila = cursor.fetchone()
+
+    assert fila == ("Apple Inc. Actualizado", 60, 120.0, 180.0)

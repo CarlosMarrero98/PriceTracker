@@ -60,4 +60,25 @@ class DatabaseManager:
             )
             conn.commit()
 
-   
+    def agregar_producto(
+        self,
+        chat_id: str,
+        symbol: str,
+        nombre_empresa: str,
+        intervalo: int = 15,
+        limite_inf: float = 0.0,
+        limite_sup: float = 0.0,
+    ):
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO productos_seguidos (
+                    chat_id, symbol, nombre_empresa, intervalo_min, limite_inferior, limite_superior
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+                (chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup),
+            )
+            conn.commit()
+
+    
