@@ -111,3 +111,29 @@ def test_agregar_producto_reemplaza_si_existe(db_temp):
         fila = cursor.fetchone()
 
     assert fila == ("Apple Inc. Actualizado", 60, 120.0, 180.0)
+
+def test_obtener_productos_devuelve_lista_correcta(db_temp):
+    chat_id = "123456"
+
+    productos = [
+        ("AAPL", "Apple Inc.", 15),
+        ("TSLA", "Tesla Inc.", 30),
+        ("GOOG", "Google LLC", 45),
+    ]
+
+    for symbol, nombre, intervalo in productos:
+        db_temp.agregar_producto(chat_id, symbol, nombre, intervalo)
+
+    resultado = db_temp.obtener_productos(chat_id)
+
+    # Convertimos a conjunto para que no importe el orden
+    resultado_esperado = {(p[0], p[2], p[1]) for p in productos}
+    resultado_obtenido = set(resultado)
+
+    assert resultado_obtenido == resultado_esperado
+
+
+def test_obtener_productos_lista_vacia_si_no_hay_productos(db_temp):
+    chat_id = "999999"
+    resultado = db_temp.obtener_productos(chat_id)
+    assert resultado == []

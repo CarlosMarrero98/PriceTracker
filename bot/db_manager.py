@@ -82,3 +82,17 @@ class DatabaseManager:
             conn.commit()
 
     
+    def obtener_productos(self, chat_id: str) -> List[Tuple[str, int, str]]:
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT symbol, intervalo_min, nombre_empresa
+                FROM productos_seguidos
+                WHERE chat_id = ?
+            """,
+                (chat_id,),
+            )
+            return cursor.fetchall()
+
+    
