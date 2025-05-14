@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import pytest
+import time
 from bot.db_manager import DatabaseManager
 
 
@@ -183,3 +184,31 @@ def test_guardar_precio_permite_multiples_registros(db_temp):
         resultados = [fila[0] for fila in cursor.fetchall()]
 
     assert resultados == precios
+
+def test_obtener_historial_devuelve_los_ultimos_10(db_temp):
+    chat_id = "123456"
+    symbol = "AAPL"
+
+    # Insertamos 12 precios (solo deben devolver los últimos 10)
+    precios = [100 + i for i in range(12)]  # 100, 101, ..., 111
+
+    for precio in precios:
+        db_temp.guardar_precio(chat_id, symbol, precio)
+        time.sleep(0.01)  # Asegura timestamps distintos
+
+    historial = db_temp.obtener_historial(chat_id, symbol)
+
+    assert len(historial) == 10
+
+    # Extraemos los precios y comprobamos que están en orden descendente
+    precios_obtenidos = [fila[0] for fila in historial]
+    assert precios_obtenidos == precios[-1:-11:-1]  # últimos 10 en orden inverso
+
+
+def test_obtener_historial_lista_vacia_si_no_hay_registros(db_temp):
+    chat_id = "999999"
+    symbol = "MSFT"
+
+    historial = db_temp.obtener_historial(chat_id, symbol)
+
+    assert historial == []

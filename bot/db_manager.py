@@ -106,3 +106,17 @@ class DatabaseManager:
                 (chat_id, symbol, precio),
             )
             conn.commit()
+
+    def obtener_historial(self, chat_id: str, symbol: str) -> List[Tuple[float, str]]:
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT precio, timestamp FROM historial_precios
+                WHERE chat_id = ? AND symbol = ?
+                ORDER BY id DESC
+                LIMIT 10
+            """,
+                (chat_id, symbol),
+            )
+            return cursor.fetchall()
