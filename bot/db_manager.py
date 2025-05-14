@@ -95,4 +95,14 @@ class DatabaseManager:
             )
             return cursor.fetchall()
 
-    
+    def guardar_precio(self, chat_id: str, symbol: str, precio: float):
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO historial_precios (chat_id, symbol, precio)
+                VALUES (?, ?, ?)
+            """,
+                (chat_id, symbol, precio),
+            )
+            conn.commit()

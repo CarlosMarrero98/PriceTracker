@@ -137,3 +137,49 @@ def test_obtener_productos_lista_vacia_si_no_hay_productos(db_temp):
     chat_id = "999999"
     resultado = db_temp.obtener_productos(chat_id)
     assert resultado == []
+
+def test_guardar_precio_inserta_entrada_correcta(db_temp):
+    chat_id = "123456"
+    symbol = "AAPL"
+    precio = 150.25
+
+    db_temp.guardar_precio(chat_id, symbol, precio)
+
+    with sqlite3.connect(db_temp.db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT chat_id, symbol, precio
+            FROM historial_precios
+            WHERE chat_id = ? AND symbol = ?
+        """,
+            (chat_id, symbol),
+        )
+        fila = cursor.fetchone()
+
+    assert fila is not None
+    assert fila[0] == chat_id
+    assert fila[1] == symbol
+    assert fila[2] == precio
+
+
+def test_guardar_precio_permite_multiples_registros(db_temp):
+    chat_id = "123456"
+    symbol = "AAPL"
+    precios = [150.25, 151.00, 149.80]
+
+    for precio in precios:
+        db_temp.guardar_precio(chat_id, symbol, precio)
+
+    with sqlite3.connect(db_temp.db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT precio FROM historial_precios
+            WHERE chat_id = ? AND symbol = ?
+        """,
+            (chat_id, symbol),
+        )
+        resultados = [fila[0] for fila in cursor.fetchall()]
+
+    assert resultados == precios
