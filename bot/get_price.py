@@ -8,21 +8,23 @@ TWELVE_API_KEY = os.getenv("TWELVE_API_KEY")
 def fetch_stock_price(ticker):
     try:
         url = f"https://api.twelvedata.com/quote?symbol={ticker}&apikey={TWELVE_API_KEY}"
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
+        print("🟡 URL:", url)
 
-        # Validación explícita si hay error
+        response = requests.get(url)
+        print("🟢 STATUS:", response.status_code)
+
+        data = response.json()
+        print("🔵 RESPONSE:", data)
+
         if "status" in data and data["status"] == "error":
             return None
-        if "price" not in data or data["price"] == "":
+        if "close" not in data or data["close"] == "":
             return None
 
         return {
-            "price": round(float(data["price"]), 2),
+            "price": round(float(data["close"]), 2),
             "name": data.get("name", "Nombre desconocido")
         }
     except Exception as e:
         print(f"Error al obtener el precio de {ticker}: {e}")
         return None
-

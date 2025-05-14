@@ -1,5 +1,3 @@
-from dotenv import load_dotenv
-import os
+from bot.get_price import fetch_stock_price
 
-load_dotenv()
-print("TOKEN:", os.getenv("TELEGRAM_BOT_TOKEN"))
+print(fetch_stock_price("AAPL"))
