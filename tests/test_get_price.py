@@ -1,11 +1,11 @@
-from bot.get_price import get_price
+from bot.get_price import fetch_stock_price
 
+def test_fetch_stock_price_valido():
+    result = fetch_stock_price("AAPL")
+    assert result is not None
+    assert "price" in result
+    assert "name" in result
 
-def test_get_price_returns_float():
-    price = get_price("123")
-    assert isinstance(price, float)
-
-# Comprobar que el resultado es 99.99
-def test_get_price_returns_correct_value():
-    price = get_price("123")
-    assert price == 99.99
+def test_fetch_stock_price_invalido():
+    result = fetch_stock_price("INVALIDO123")
+    assert result is None

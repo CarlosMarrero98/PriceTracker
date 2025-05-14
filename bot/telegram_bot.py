@@ -1,117 +1,113 @@
-import os
-import logging
-import asyncio
-from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    ConversationHandler,
-    filters,
-)
+from telegram.ext import Application, CommandHandler, ContextTypes
+from bot.price_checker import get_alert_message, get_help_text
+from bot.user_session import login, logout, is_logged_in
+from bot.historial import obtener_historial
+from bot.alerts import registrar_alerta, gestionar_alertas
+from dotenv import load_dotenv
+import os
+import asyncio
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
-
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-USERS = {}
-ACCIONES = {}
-FRECUENCIA = {}
 
-# ----- Comandos -----
-
+# Comando /start con aviso de login
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("¡Bienvenido al bot de inversiones! Usa /login para comenzar.")
+    user = update.effective_user
+    mensaje = f"👋 ¡Hola {user.first_name}!\n"
 
-async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    USERS[user_id] = True
-    await update.message.reply_text("Sesión iniciada. ¿Qué acciones deseas seguir? Usa /acciones para configurarlo.")
+    if is_logged_in(user.id):
+        mensaje += "Estás logueado. Usa /comandos para ver lo que puedes hacer."
+    else:
+        mensaje += "Para comenzar, usa /login para iniciar sesión."
 
-async def acciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if USERS.get(user_id):
-        await update.message.reply_text("Escribe los tickers separados por coma (ej: TSLA, AAPL):")
-        return 1
-    await update.message.reply_text("Primero debes iniciar sesión con /login.")
-    return ConversationHandler.END
+    await update.message.reply_text(mensaje)
 
-async def guardar_acciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    texto = update.message.text.upper().replace(" ", "")
-    ACCIONES[user_id] = texto.split(",")
-    await update.message.reply_text(f"Acciones guardadas: {ACCIONES[user_id]}")
-    return ConversationHandler.END
+# Comando /comandos
+async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(get_help_text())
 
+# Comando /ayuda
+async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📌 Para ver todas las opciones disponibles escribe /comandos")
+
+# Comando /price
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.message.reply_text("Uso: /price TICKER")
+        await update.message.reply_text("❗Uso correcto: /price TICKER")
         return
     ticker = context.args[0].upper()
-    precio = get_price_from_tuelvedata(ticker)
-    await update.message.reply_text(f"El precio actual de {ticker} es {precio}€")
+    msg = get_alert_message(ticker)
+    await update.message.reply_text(msg)
 
-async def alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Funcionalidad de alerta guardada. (A implementar)")
+# Comando /portfolio
+async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📈 Aquí estaría tu portafolio. (Función en desarrollo)")
 
-async def frecuencia(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
+# Comando /login
+async def login_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    login(update.effective_user.id)
+    await update.message.reply_text("✅ Sesión iniciada.")
+
+# Comando /logout
+async def logout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logout(update.effective_user.id)
+    await update.message.reply_text("🔒 Sesión cerrada.")
+
+# Comando /acciones
+async def acciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ejemplos = ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN"]
+    await update.message.reply_text("📈 Acciones populares:\n" + "\n".join(ejemplos))
+
+# Comando /historial
+async def historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.message.reply_text("Uso: /frecuencia MINUTOS")
+        await update.message.reply_text("Uso: /historial TICKER")
         return
+    ticker = context.args[0].upper()
+    precios = obtener_historial(ticker)
+    if precios:
+        historial_str = "\n".join([f"{i+1}. {p}€" for i, p in enumerate(precios)])
+        await update.message.reply_text(f"📜 Historial de {ticker}:\n{historial_str}")
+    else:
+        await update.message.reply_text(f"No hay historial para {ticker}.")
+
+# Comando /alerta
+async def alerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_logged_in(update.effective_user.id):
+        await update.message.reply_text("Debes hacer /login primero.")
+        return
+    if len(context.args) != 2:
+        await update.message.reply_text("Uso: /alerta <TICKER> <MINUTOS>")
+        return
+    ticker = context.args[0].upper()
     try:
-        minutos = int(context.args[0])
-        FRECUENCIA[user_id] = minutos
-        await update.message.reply_text(f"Consultaré precios cada {minutos} minutos.")
+        intervalo = int(context.args[1]) * 60
     except ValueError:
-        await update.message.reply_text("Introduce un número válido.")
+        await update.message.reply_text("❗ Intervalo debe ser un número entero.")
+        return
+    registrar_alerta(update.effective_user.id, ticker, intervalo)
+    await update.message.reply_text(f"🔔 Alerta para {ticker} cada {intervalo // 60} minutos activada.")
 
-async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    USERS.pop(user_id, None)
-    await update.message.reply_text("Sesión cerrada.")
-
-# ----- Lógica de simulación -----
-
-def get_price_from_tuelvedata(ticker: str) -> float:
-    import random
-    return round(random.uniform(100, 500), 2)
-
-async def job_check_prices(context: ContextTypes.DEFAULT_TYPE):
-    app = context.application
-    for user_id in USERS:
-        if user_id in ACCIONES:
-            for ticker in ACCIONES[user_id]:
-                precio = get_price_from_tuelvedata(ticker)
-                await app.bot.send_message(chat_id=user_id, text=f"📈 {ticker} = {precio}€")
-
-# ----- Main -----
-
+# MAIN
 def main():
     app = Application.builder().token(TOKEN).build()
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("acciones", acciones)],
-        states={1: [MessageHandler(filters.TEXT & ~filters.COMMAND, guardar_acciones)]},
-        fallbacks=[],
-    )
-
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("login", login))
-    app.add_handler(conv_handler)
+    app.add_handler(CommandHandler("comandos", comandos))
+    app.add_handler(CommandHandler("ayuda", ayuda))
     app.add_handler(CommandHandler("price", price))
-    app.add_handler(CommandHandler("alert", alert))
-    app.add_handler(CommandHandler("frecuencia", frecuencia))
-    app.add_handler(CommandHandler("logout", logout))
+    app.add_handler(CommandHandler("portfolio", portfolio))
+    app.add_handler(CommandHandler("login", login_cmd))
+    app.add_handler(CommandHandler("logout", logout_cmd))
+    app.add_handler(CommandHandler("acciones", acciones))
+    app.add_handler(CommandHandler("historial", historial))
+    app.add_handler(CommandHandler("alerta", alerta))
 
-    # Comprobaciones periódicas
-    app.job_queue.run_repeating(job_check_prices, interval=60, first=10)
+    app.job_queue.run_once(lambda *_: asyncio.create_task(gestionar_alertas(app)), 0)
 
-    print("Bot iniciado")
+    print("✅ Bot iniciado.")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-
