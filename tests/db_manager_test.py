@@ -239,3 +239,25 @@ def test_obtener_estadisticas_sin_datos_retorna_none(db_temp):
     resultado = db_temp.obtener_estadisticas(chat_id, symbol)
 
     assert resultado == (None, None, None)
+
+
+def test_obtener_limites_devuelve_valores_correctos(db_temp):
+    chat_id = "123456"
+    symbol = "AAPL"
+    limite_inf = 120.0
+    limite_sup = 180.0
+
+    db_temp.agregar_producto(chat_id, symbol, "Apple Inc.", 15, limite_inf, limite_sup)
+
+    limites = db_temp.obtener_limites(chat_id, symbol)
+
+    assert limites == (limite_inf, limite_sup)
+
+
+def test_obtener_limites_retorna_none_si_no_existe(db_temp):
+    chat_id = "999999"
+    symbol = "TSLA"
+
+    limites = db_temp.obtener_limites(chat_id, symbol)
+
+    assert limites is None

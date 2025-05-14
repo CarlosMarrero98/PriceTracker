@@ -81,7 +81,6 @@ class DatabaseManager:
             )
             conn.commit()
 
-    
     def obtener_productos(self, chat_id: str) -> List[Tuple[str, int, str]]:
         with self._conectar() as conn:
             cursor = conn.cursor()
@@ -120,7 +119,7 @@ class DatabaseManager:
                 (chat_id, symbol),
             )
             return cursor.fetchall()
-        
+
     def obtener_estadisticas(
         self, chat_id: str, symbol: str
     ) -> Tuple[float, float, float]:
@@ -130,6 +129,19 @@ class DatabaseManager:
                 """
                 SELECT MIN(precio), MAX(precio), AVG(precio)
                 FROM historial_precios
+                WHERE chat_id = ? AND symbol = ?
+            """,
+                (chat_id, symbol),
+            )
+            return cursor.fetchone()
+
+    def obtener_limites(self, chat_id: str, symbol: str) -> Tuple[float, float]:
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT limite_inferior, limite_superior
+                FROM productos_seguidos
                 WHERE chat_id = ? AND symbol = ?
             """,
                 (chat_id, symbol),
