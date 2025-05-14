@@ -1,10 +1,11 @@
-from telegram import Update
+from telegram import Update, InputFile
 from telegram.ext import Application, CommandHandler, ContextTypes
-from bot.price_checker import get_alert_message, get_help_text
+from bot.price_checker import get_alert_message, get_help_text, validate_ticker
 from bot.user_session import login, logout, is_logged_in
 from bot.historial import obtener_historial
 from bot.alerts import registrar_alerta, gestionar_alertas
 from bot.seguimiento import seguir_accion, dejar_de_seguir, obtener_favoritas
+from bot.grafico import generar_grafico
 from dotenv import load_dotenv
 import os
 import asyncio
@@ -79,7 +80,13 @@ async def alerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) != 4:
         await update.message.reply_text("Uso: /alerta <TICKER> <MINUTOS> <MIN_PRECIO> <MAX_PRECIO>")
         return
+
     ticker = context.args[0].upper()
+
+    if not validate_ticker(ticker):
+        await update.message.reply_text(f"❌ El ticker '{ticker}' no es válido.")
+        return
+
     try:
         intervalo = int(context.args[1]) * 60
         min_price = float(context.args[2])
@@ -87,6 +94,7 @@ async def alerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("❗ Intervalo y precios deben ser numéricos.")
         return
+
     registrar_alerta(update.effective_user.id, ticker, intervalo, min_price, max_price)
     await update.message.reply_text(
         f"🔔 Alerta para {ticker} cada {intervalo // 60} minutos.\n"
@@ -128,6 +136,18 @@ async def favoritas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Aún no estás siguiendo ninguna acción.")
 
+# /grafico <TICKER>
+async def grafico(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Uso: /grafico <TICKER>")
+        return
+    ticker = context.args[0].upper()
+    buffer = generar_grafico(ticker)
+    if not buffer:
+        await update.message.reply_text(f"No hay historial suficiente para {ticker}.")
+        return
+    await update.message.reply_photo(photo=InputFile(buffer), caption=f"📈 Historial de precios de {ticker}")
+
 # MAIN
 def main():
     app = Application.builder().token(TOKEN).build()
@@ -145,6 +165,7 @@ def main():
     app.add_handler(CommandHandler("seguir", seguir))
     app.add_handler(CommandHandler("dejar", dejar))
     app.add_handler(CommandHandler("favoritas", favoritas))
+    app.add_handler(CommandHandler("grafico", grafico))
 
     app.job_queue.run_once(lambda *_: asyncio.create_task(gestionar_alertas(app)), 0)
 
@@ -153,3 +174,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
