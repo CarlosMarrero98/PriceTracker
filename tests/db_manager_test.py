@@ -113,6 +113,7 @@ def test_agregar_producto_reemplaza_si_existe(db_temp):
 
     assert fila == ("Apple Inc. Actualizado", 60, 120.0, 180.0)
 
+
 def test_obtener_productos_devuelve_lista_correcta(db_temp):
     chat_id = "123456"
 
@@ -138,6 +139,7 @@ def test_obtener_productos_lista_vacia_si_no_hay_productos(db_temp):
     chat_id = "999999"
     resultado = db_temp.obtener_productos(chat_id)
     assert resultado == []
+
 
 def test_guardar_precio_inserta_entrada_correcta(db_temp):
     chat_id = "123456"
@@ -185,6 +187,7 @@ def test_guardar_precio_permite_multiples_registros(db_temp):
 
     assert resultados == precios
 
+
 def test_obtener_historial_devuelve_los_ultimos_10(db_temp):
     chat_id = "123456"
     symbol = "AAPL"
@@ -212,3 +215,27 @@ def test_obtener_historial_lista_vacia_si_no_hay_registros(db_temp):
     historial = db_temp.obtener_historial(chat_id, symbol)
 
     assert historial == []
+
+
+def test_obtener_estadisticas_calcula_min_max_avg(db_temp):
+    chat_id = "123456"
+    symbol = "AAPL"
+    precios = [100.0, 105.0, 110.0, 95.0, 120.0]
+
+    for precio in precios:
+        db_temp.guardar_precio(chat_id, symbol, precio)
+
+    minimo, maximo, media = db_temp.obtener_estadisticas(chat_id, symbol)
+
+    assert minimo == min(precios)
+    assert maximo == max(precios)
+    assert round(media, 2) == round(sum(precios) / len(precios), 2)
+
+
+def test_obtener_estadisticas_sin_datos_retorna_none(db_temp):
+    chat_id = "999999"
+    symbol = "GOOG"
+
+    resultado = db_temp.obtener_estadisticas(chat_id, symbol)
+
+    assert resultado == (None, None, None)
