@@ -17,3 +17,4 @@ def test_generar_grafico_sin_datos(monkeypatch):
 
     resultado = generar_grafico("AAPL")
     assert resultado is None
+
