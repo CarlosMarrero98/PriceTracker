@@ -6,6 +6,7 @@ from bot.historial import obtener_historial
 from bot.alerts import registrar_alerta, gestionar_alertas
 from bot.seguimiento import seguir_accion, dejar_de_seguir, obtener_favoritas
 from bot.grafico import generar_grafico
+from bot.get_price import fetch_stock_price
 from dotenv import load_dotenv
 import os
 import asyncio
@@ -64,11 +65,19 @@ async def historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("Uso: /historial TICKER")
         return
+
     ticker = context.args[0].upper()
+    data = fetch_stock_price(ticker)
+    if not data:
+        await update.message.reply_text(f"❌ Ticker '{ticker}' no válido o no disponible.")
+        return
+
     precios = obtener_historial(ticker)
     if precios:
         historial_str = "\n".join([f"{i+1}. {p}€" for i, p in enumerate(precios)])
-        await update.message.reply_text(f"📜 Historial de {ticker}:\n{historial_str}")
+        await update.message.reply_text(
+            f"📜 Historial de {data['name']} ({ticker}):\n{historial_str}"
+        )
     else:
         await update.message.reply_text(f"No hay historial para {ticker}.")
 
@@ -95,9 +104,10 @@ async def alerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❗ Intervalo y precios deben ser numéricos.")
         return
 
+    data = fetch_stock_price(ticker)
     registrar_alerta(update.effective_user.id, ticker, intervalo, min_price, max_price)
     await update.message.reply_text(
-        f"🔔 Alerta para {ticker} cada {intervalo // 60} minutos.\n"
+        f"🔔 Alerta para {data['name']} ({ticker}) cada {intervalo // 60} minutos.\n"
         f"Rango de alerta: {min_price} € - {max_price} €"
     )
 
@@ -130,9 +140,15 @@ async def favoritas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_logged_in(update.effective_user.id):
         await update.message.reply_text("Debes hacer /login para ver tus favoritas.")
         return
+
     favoritas = obtener_favoritas(update.effective_user.id)
     if favoritas:
-        await update.message.reply_text("⭐ Acciones que estás siguiendo:\n" + "\n".join(favoritas))
+        nombres = []
+        for ticker in favoritas:
+            data = fetch_stock_price(ticker)
+            nombre = data["name"] if data else "Nombre no disponible"
+            nombres.append(f"{nombre} ({ticker})")
+        await update.message.reply_text("⭐ Acciones que estás siguiendo:\n" + "\n".join(nombres))
     else:
         await update.message.reply_text("Aún no estás siguiendo ninguna acción.")
 
@@ -142,11 +158,15 @@ async def grafico(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Uso: /grafico <TICKER>")
         return
     ticker = context.args[0].upper()
+    data = fetch_stock_price(ticker)
+    if not data:
+        await update.message.reply_text(f"❌ El ticker '{ticker}' no es válido.")
+        return
     buffer = generar_grafico(ticker)
     if not buffer:
         await update.message.reply_text(f"No hay historial suficiente para {ticker}.")
         return
-    await update.message.reply_photo(photo=InputFile(buffer), caption=f"📈 Historial de precios de {ticker}")
+    await update.message.reply_photo(photo=InputFile(buffer), caption=f"📈 Historial de precios de {data['name']} ({ticker})")
 
 # MAIN
 def main():
@@ -174,5 +194,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

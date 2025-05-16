@@ -1,26 +1,57 @@
-import os
 import pytest
-from telegram.ext import Application
-from unittest.mock import patch
+from bot.telegram_bot import start, login_cmd, logout_cmd
+from bot import user_session
 
+@pytest.mark.asyncio
+async def test_start_no_logueado():
+    class FakeMessage:
+        async def reply_text(self, text):
+            self.text = text
 
-@pytest.fixture
-def telegram_token():
-    return os.getenv("TELEGRAM_BOT_TOKEN")
+    class FakeUser:
+        id = 1
+        first_name = "Alejandro"
 
+    class FakeUpdate:
+        effective_user = FakeUser()
+        message = FakeMessage()
 
-def test_token_exists(telegram_token):
-    assert telegram_token is not None
-    assert telegram_token.startswith("1")  # tokens reales suelen empezar por "1"
+    class FakeContext:
+        args = []
 
+    update = FakeUpdate()
+    context = FakeContext()
 
-def test_application_builds(telegram_token):
-    app = Application.builder().token(telegram_token).build()
-    assert isinstance(app, Application)
-    assert app.bot is not None
+    # Asegurar que no está logueado
+    user_session.sessions.clear()
+    await start(update, context)
 
+    assert "¡Hola Alejandro" in update.message.text
+    assert "usa /login" in update.message.text
 
-@patch("bot.telegram_bot.Application.builder")
-def test_main_builds_application(mock_builder):
-    from bot import telegram_bot
-    assert mock_builder.called, "Application.builder() should be called in main()"
+@pytest.mark.asyncio
+async def test_login_y_logout():
+    class FakeMessage:
+        async def reply_text(self, text):
+            self.text = text
+
+    class FakeUser:
+        id = 42
+
+    class FakeUpdate:
+        effective_user = FakeUser()
+        message = FakeMessage()
+
+    class FakeContext:
+        args = []
+
+    update = FakeUpdate()
+    context = FakeContext()
+
+    await login_cmd(update, context)
+    assert user_session.is_logged_in(update.effective_user.id)
+    assert "✅ Sesión iniciada" in update.message.text
+
+    await logout_cmd(update, context)
+    assert not user_session.is_logged_in(update.effective_user.id)
+    assert "🔒 Sesión cerrada" in update.message.text

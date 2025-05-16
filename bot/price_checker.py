@@ -14,13 +14,18 @@ def get_help_text():
     return (
         "📋 *Comandos disponibles:*\n"
         "/start - Iniciar el bot\n"
-        "/price <TICKER> - Ver precio de una acción\n"
-        "/portfolio - Ver tu portafolio\n"
-        "/acciones - Ver acciones populares\n"
-        "/historial <TICKER> - Ver historial de precios\n"
-        "/alerta <TICKER> <MINUTOS> - Configurar alerta\n"
         "/login - Iniciar sesión\n"
         "/logout - Cerrar sesión\n"
+        "/price <TICKER> - Ver precio de una acción\n"
+        "/acciones - Ver acciones populares\n"
+        "/historial <TICKER> - Ver historial de precios\n"
+        "/grafico <TICKER> - Ver gráfico de la acción\n"
+        "/alerta <TICKER> <MINUTOS> <MIN> <MAX> - Configurar alerta\n"
+        "/seguir <TICKER> - Seguir una acción\n"
+        "/dejar <TICKER> - Dejar de seguir una acción\n"
+        "/favoritas - Ver tus acciones favoritas\n"
+        "/portfolio - Ver tu portafolio (en desarrollo)\n"
         "/comandos - Ver comandos disponibles\n"
         "/ayuda - Ayuda rápida"
     )
+
