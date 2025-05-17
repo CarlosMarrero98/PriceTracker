@@ -1,30 +1,42 @@
 import requests
-import os
-from dotenv import load_dotenv
+from typing import Dict, Optional
 
-load_dotenv()
-TWELVE_API_KEY = os.getenv("TWELVE_API_KEY")
 
-def fetch_stock_price(ticker):
+def fetch_stock_price(
+    symbol: str, api_key: str
+) -> Dict[str, Optional[float | str]]:
+    """
+    Consulta el precio actual de un activo financiero usando Twelve Data.
+
+    Args:
+        symbol (str): Símbolo bursátil del activo (ej. "AAPL").
+        api_key (str): Clave de API de Twelve Data.
+
+    Returns:
+        Dict[str, Optional[float | str]]: Diccionario con las claves:
+            - "precio": precio de cierre del activo (o None si falla).
+            - "nombre": nombre de la empresa (o None si falla).
+            - "error": mensaje de error (o None si todo fue bien).
+    """
     try:
-        url = f"https://api.twelvedata.com/quote?symbol={ticker}&apikey={TWELVE_API_KEY}"
-        print("🟡 URL:", url)
-
-        response = requests.get(url)
-        print("🟢 STATUS:", response.status_code)
+        url = f"https://api.twelvedata.com/quote?symbol={symbol}&apikey={api_key}"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
 
         data = response.json()
-        print("🔵 RESPONSE:", data)
 
-        if "status" in data and data["status"] == "error":
-            return None
-        if "close" not in data or data["close"] == "":
-            return None
+        # Validación defensiva
+        if "close" not in data or "name" not in data:
+            return {
+                "precio": None,
+                "nombre": None,
+                "error": data.get("message", "Respuesta incompleta de la API"),
+            }
 
-        return {
-            "price": round(float(data["close"]), 2),
-            "name": data.get("name", "Nombre desconocido")
-        }
-    except Exception as e:
-        print(f"Error al obtener el precio de {ticker}: {e}")
-        return None
+        precio = float(data["close"])
+        nombre_empresa = data["name"]
+
+        return {"precio": precio, "nombre": nombre_empresa, "error": None}
+
+    except (requests.RequestException, TimeoutError, ValueError, KeyError) as e:
+        return {"precio": None, "nombre": None, "error": str(e)}

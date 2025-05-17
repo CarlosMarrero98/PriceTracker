@@ -1,5 +1,7 @@
 from bot.db_manager import DatabaseManager
 from dotenv import load_dotenv
+from bot.get_price import fetch_stock_price
+
 import os
 
 load_dotenv()
@@ -57,8 +59,33 @@ def prueba_base_datos():
         print("\nNo se encontró la base de datos para eliminar.")
 
 
+def prueba_get_price():
+    load_dotenv()  # Carga variables del archivo .env
+
+    api_key = os.getenv("TWELVE_API_KEY")
+    if not api_key:
+        print("No se encontró la clave de API en el archivo .env")
+        return
+
+    simbolos = ["AAPL", "INVALIDO", "TSLA", "GOOGL", "MSFT"]
+
+    for symbol in simbolos:
+        print(f"Consultando: {symbol}")
+        resultado = fetch_stock_price(symbol, api_key)
+
+        if resultado["error"]:
+            if "symbol" in resultado["error"].lower():
+                print(f"Error: Símbolo inválido '{symbol}'")
+            else:
+                print(f"Error: {resultado['error']}")
+        else:
+            print(f"  ✅ {resultado['nombre']} - Precio: {resultado['precio']}")
+
+        print()
+
+
 def main():
-    prueba_base_datos()
+    prueba_get_price()
 
 
 if __name__ == "__main__":
