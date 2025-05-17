@@ -136,7 +136,9 @@ class DatabaseManager:
             )
             conn.commit()
 
-    def obtener_productos(self, chat_id: str) -> List[Tuple[str, int, str]]:
+    def obtener_productos(
+        self, chat_id: str
+    ) -> List[Tuple[str, int, str, float, float]]:
         """
         Recupera la lista de activos financieros seguidos por un usuario.
 
@@ -147,14 +149,13 @@ class DatabaseManager:
             chat_id (str): Identificador del chat del usuario.
 
         Returns:
-            List[Tuple[str, int, str]]: Lista de productos seguidos, cada uno con
-            (symbol, intervalo_min, nombre_empresa).
+            List[Tuple[str, int, str, float, float]]: Lista de tuplas con la información de los activos.
         """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT symbol, intervalo_min, nombre_empresa
+                SELECT symbol, intervalo_min, nombre_empresa, limite_inferior, limite_superior
                 FROM productos_seguidos
                 WHERE chat_id = ?
             """,

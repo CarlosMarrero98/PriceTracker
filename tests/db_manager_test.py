@@ -118,18 +118,24 @@ def test_obtener_productos_devuelve_lista_correcta(db_temp):
     chat_id = "123456"
 
     productos = [
-        ("AAPL", "Apple Inc.", 15),
-        ("TSLA", "Tesla Inc.", 30),
-        ("GOOG", "Google LLC", 45),
+        ("AAPL", "Apple Inc.", 15, 100.0, 200.0),
+        ("TSLA", "Tesla Inc.", 30, 150.0, 300.0),
+        ("GOOG", "Google LLC", 45, 90.0, 250.0),
     ]
 
-    for symbol, nombre, intervalo in productos:
-        db_temp.agregar_producto(chat_id, symbol, nombre, intervalo)
+    for symbol, nombre, intervalo, limite_inf, limite_sup in productos:
+        db_temp.agregar_producto(
+            chat_id, symbol, nombre, intervalo, limite_inf, limite_sup
+        )
 
     resultado = db_temp.obtener_productos(chat_id)
 
-    # Convertimos a conjunto para que no importe el orden
-    resultado_esperado = {(p[0], p[2], p[1]) for p in productos}
+    # Convertimos a conjunto para evitar errores por el orden
+    resultado_esperado = {
+        (symbol, intervalo, nombre, limite_inf, limite_sup)
+        for (symbol, nombre, intervalo, limite_inf, limite_sup) in productos
+    }
+
     resultado_obtenido = set(resultado)
 
     assert resultado_obtenido == resultado_esperado
