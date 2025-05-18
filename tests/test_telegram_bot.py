@@ -1,6 +1,15 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from bot.telegram_bot import start, comandos, ayuda, seguir, favoritas, price
+from bot.telegram_bot import (
+    start,
+    comandos,
+    ayuda,
+    seguir,
+    favoritas,
+    price,
+    historial,
+    guardar,
+)
 from telegram import Update, User, Message
 
 
@@ -88,6 +97,7 @@ async def test_seguir_sin_args_envia_uso(monkeypatch):
     update.message.reply_text.assert_called_once_with(
         "Uso: /seguir <TICKER> [INTERVALO] [LIMITE_INF] [LIMITE_SUP]"
     )
+
 
 @pytest.mark.asyncio
 async def test_seguir_error_api(monkeypatch):
@@ -225,3 +235,206 @@ async def test_price_valido(monkeypatch):
     update.message.reply_text.assert_called_once_with(
         "📈 *Apple Inc.* (AAPL)\n💰 Precio actual: 123.45$", parse_mode="Markdown"
     )
+
+
+# -------------------------------
+# /historial
+# -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_historial_sin_args():
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock()
+    context = MagicMock()
+    context.args = []
+
+    await historial(update, context)
+    update.message.reply_text.assert_called_once_with(
+        "Uso correcto: /historial <TICKER>"
+    )
+
+
+@pytest.mark.asyncio
+async def test_historial_sin_api_key(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: None)
+
+    await historial(update, context)
+    update.message.reply_text.assert_called_once_with("Clave de API no configurada.")
+
+
+@pytest.mark.asyncio
+async def test_historial_ticker_invalido(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: "API_KEY")
+    monkeypatch.setattr(
+        "bot.telegram_bot.fetch_stock_price",
+        lambda *args: {"precio": None, "nombre": None, "error": "Invalid ticker"},
+    )
+
+    await historial(update, context)
+    update.message.reply_text.assert_called_once_with(
+        "Ticker 'AAPL' no válido o no disponible: Invalid ticker"
+    )
+
+
+@pytest.mark.asyncio
+async def test_historial_vacio(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: "API_KEY")
+    monkeypatch.setattr(
+        "bot.telegram_bot.fetch_stock_price",
+        lambda *args: {"precio": 123.45, "nombre": "Apple Inc.", "error": None},
+    )
+    monkeypatch.setattr(
+        "bot.telegram_bot.db.obtener_historial", lambda chat_id, ticker: []
+    )
+
+    await historial(update, context)
+    update.message.reply_text.assert_called_once_with(
+        "📭 No hay historial guardado para AAPL."
+    )
+
+
+@pytest.mark.asyncio
+async def test_historial_valido(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: "API_KEY")
+    monkeypatch.setattr(
+        "bot.telegram_bot.fetch_stock_price",
+        lambda symbol, api_key: {
+            "precio": 123.45,
+            "nombre": "Apple Inc.",
+            "error": None,
+        },
+    )
+    monkeypatch.setattr(
+        "bot.telegram_bot.db.obtener_historial",
+        lambda chat_id, ticker: [
+            (123.45, "2024-05-01 12:00"),
+            (125.67, "2024-05-02 12:00"),
+        ],
+    )
+
+    await historial(update, context)
+
+    expected_message = (
+        "📜 *Historial de Apple Inc. (AAPL):*\n\n"
+        "1. 123.45$ — 2024-05-01 12:00\n"
+        "2. 125.67$ — 2024-05-02 12:00"
+    )
+    update.message.reply_text.assert_called_once_with(
+        expected_message, parse_mode="Markdown"
+    )
+
+
+# -------------------------------
+# /guardar
+# -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_guardar_sin_args():
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock()
+    context = MagicMock()
+    context.args = []
+
+    await guardar(update, context)
+
+    update.message.reply_text.assert_called_once_with("Uso correcto: /guardar <TICKER>")
+
+
+@pytest.mark.asyncio
+async def test_guardar_sin_api_key(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: None)
+
+    await guardar(update, context)
+
+    update.message.reply_text.assert_called_once_with("Error: falta la clave de API.")
+
+
+@pytest.mark.asyncio
+async def test_guardar_error_precio(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: "FAKE_API_KEY")
+    monkeypatch.setattr(
+        "bot.telegram_bot.fetch_stock_price",
+        lambda *args: {"precio": None, "nombre": "Apple", "error": None},
+    )
+
+    await guardar(update, context)
+
+    update.message.reply_text.assert_called_once_with(
+        "Error: el precio recibido no es válido."
+    )
+
+
+@pytest.mark.asyncio
+async def test_guardar_correcto(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: "FAKE_API_KEY")
+    monkeypatch.setattr(
+        "bot.telegram_bot.fetch_stock_price",
+        lambda *args: {"precio": 154.32, "nombre": "Apple Inc.", "error": None},
+    )
+
+    mock_guardar = MagicMock()
+    monkeypatch.setattr("bot.telegram_bot.db.guardar_precio", mock_guardar)
+
+    await guardar(update, context)
+
+    expected = (
+        "📝 Se ha guardado el precio actual de *Apple Inc.* (AAPL) en tu historial.\n"
+        "💰 Precio: 154.32 €"
+    )
+    update.message.reply_text.assert_called_once_with(expected, parse_mode="Markdown")
+    mock_guardar.assert_called_once_with("1", "AAPL", 154.32)

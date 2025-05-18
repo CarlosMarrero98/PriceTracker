@@ -211,6 +211,116 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
     )
 
+# /guardar <TICKER>
+async def guardar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Guarda el precio actual de una acción en el historial del usuario.
+
+    El usuario debe indicar el símbolo bursátil como argumento. Se consulta el precio
+    mediante la API y se almacena en la base de datos si es válido.
+
+    Args:
+        update (Update): Objeto de actualización de Telegram.
+        context (ContextTypes.DEFAULT_TYPE): Contexto que incluye argumentos del comando.
+    """
+    if update.effective_user is None or update.message is None:
+        return
+
+    if not context.args:
+        await update.message.reply_text("Uso correcto: /guardar <TICKER>")
+        return
+
+    ticker = context.args[0].strip().upper()
+    chat_id = str(update.effective_user.id)
+    api_key = os.getenv("TWELVE_API_KEY")
+
+    if not api_key:
+        await update.message.reply_text("Error: falta la clave de API.")
+        return
+
+    data = fetch_stock_price(ticker, api_key)
+
+    if data["error"]:
+        await update.message.reply_text(
+            f"No se pudo obtener el precio de '{ticker}': {data['error']}"
+        )
+        return
+
+    precio = data["precio"]
+    nombre = data["nombre"]
+
+    if not isinstance(precio, float):
+        await update.message.reply_text("Error: el precio recibido no es válido.")
+        return
+
+    # Guardamos en la base de datos
+    db.guardar_precio(chat_id, ticker, precio)
+
+    await update.message.reply_text(
+        f"📝 Se ha guardado el precio actual de *{nombre}* ({ticker}) en tu historial.\n"
+        f"💰 Precio: {precio:.2f} €",
+        parse_mode="Markdown",
+    )
+
+# /historial <TICKER>
+async def historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Muestra los últimos precios guardados para una acción seguida por el usuario.
+
+    El usuario debe indicar el símbolo bursátil como argumento. Se verifica la validez del ticker
+    usando la API y luego se recupera el historial desde la base de datos. Si no hay historial
+    o el ticker no es válido, se informa al usuario.
+
+    Args:
+        update (Update): Objeto de actualización de Telegram.
+        context (ContextTypes.DEFAULT_TYPE): Contexto con argumentos del comando.
+    """
+    if update.effective_user is None or update.message is None:
+        return
+
+    if not context.args:
+        await update.message.reply_text("Uso correcto: /historial <TICKER>")
+        return
+
+    ticker = context.args[0].strip().upper()
+    chat_id = str(update.effective_user.id)
+    api_key = os.getenv("TWELVE_API_KEY")
+
+    if not api_key:
+        await update.message.reply_text("Clave de API no configurada.")
+        return
+
+    # Verificamos que exista el símbolo usando la API
+    data = fetch_stock_price(ticker, api_key)
+
+    if data["error"]:
+        await update.message.reply_text(
+            f"Ticker '{ticker}' no válido o no disponible: {data['error']}"
+        )
+        return
+
+    historial = db.obtener_historial(chat_id, ticker)
+
+    if not historial:
+        await update.message.reply_text(f"📭 No hay historial guardado para {ticker}.")
+        return
+
+    # historial: List[Tuple[precio: float, timestamp: str]]
+    historial_str = "\n".join(
+        [
+            f"{i + 1}. {precio:.2f}$ — {timestamp}"
+            for i, (precio, timestamp) in enumerate(historial)
+        ]
+    )
+
+    await update.message.reply_text(
+        f"📜 *Historial de {data['nombre']} ({ticker}):*\n\n{historial_str}",
+        parse_mode="Markdown",
+    )
+
+
+
+
 
 
 
@@ -228,26 +338,6 @@ async def acciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ejemplos = ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN"]
     await update.message.reply_text("📈 Acciones populares:\n" + "\n".join(ejemplos))
 
-# /historial <TICKER>
-async def historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("Uso: /historial TICKER")
-        return
-
-    ticker = context.args[0].upper()
-    data = fetch_stock_price(ticker)
-    if not data:
-        await update.message.reply_text(f"❌ Ticker '{ticker}' no válido o no disponible.")
-        return
-
-    precios = obtener_historial(ticker)
-    if precios:
-        historial_str = "\n".join([f"{i+1}. {p}€" for i, p in enumerate(precios)])
-        await update.message.reply_text(
-            f"📜 Historial de {data['name']} ({ticker}):\n{historial_str}"
-        )
-    else:
-        await update.message.reply_text(f"No hay historial para {ticker}.")
 
 # /alerta <TICKER> <MINUTOS> <MIN_PRECIO> <MAX_PRECIO>
 async def alerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
