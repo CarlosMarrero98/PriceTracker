@@ -265,3 +265,42 @@ class DatabaseManager:
                 (chat_id, symbol),
             )
             return cursor.fetchone()
+
+    def eliminar_producto(self, chat_id: str, symbol: str):
+        """
+        Elimina un activo financiero que el usuario ha dejado de seguir.
+
+        Args:
+            chat_id (str): Identificador del usuario de Telegram.
+            symbol (str): Símbolo del activo a eliminar.
+        """
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                DELETE FROM productos_seguidos
+                WHERE chat_id = ? AND symbol = ?
+                """,
+                (chat_id, symbol),
+            )
+            conn.commit()
+
+    def borrar_historial(self, chat_id: str, symbol: str):
+        """
+        Elimina el historial de precios de un símbolo para un usuario específico.
+
+        Args:
+            chat_id (str): ID del usuario de Telegram.
+            symbol (str): Símbolo de la acción (ej: "AAPL").
+        """
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                DELETE FROM historial_precios
+                WHERE chat_id = ? AND symbol = ?
+                """,
+                (chat_id, symbol),
+            )
+            conn.commit()
+

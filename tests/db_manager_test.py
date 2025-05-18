@@ -267,3 +267,47 @@ def test_obtener_limites_retorna_none_si_no_existe(db_temp):
     limites = db_temp.obtener_limites(chat_id, symbol)
 
     assert limites is None
+
+def test_eliminar_producto(db_temp):
+    chat_id = "123"
+    symbol = "AAPL"
+    nombre = "Apple Inc."
+
+    # Insertamos un producto
+    db_temp.agregar_producto(chat_id, symbol, nombre)
+
+    # Aseguramos que fue insertado
+    productos = db_temp.obtener_productos(chat_id)
+    assert len(productos) == 1
+
+    # Lo eliminamos
+    db_temp.eliminar_producto(chat_id, symbol)
+
+    # Comprobamos que fue eliminado
+    productos = db_temp.obtener_productos(chat_id)
+    assert productos == []
+
+
+def test_borrar_historial(db_temp):
+    chat_id = "123"
+    symbol = "AAPL"
+
+    # Insertamos historial manualmente
+    with db_temp._conectar() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO historial_precios (chat_id, symbol, precio, timestamp) VALUES (?, ?, ?, ?)",
+            (chat_id, symbol, 150.0, "2024-05-18 10:00:00"),
+        )
+        conn.commit()
+
+    # Verificamos que hay historial
+    historial = db_temp.obtener_historial(chat_id, symbol)
+    assert len(historial) == 1
+
+    # Eliminamos
+    db_temp.borrar_historial(chat_id, symbol)
+
+    # Comprobamos que fue eliminado
+    historial = db_temp.obtener_historial(chat_id, symbol)
+    assert historial == []
