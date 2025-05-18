@@ -1,4 +1,5 @@
 import pytest
+from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock
 from bot.telegram_bot import (
     start,
@@ -9,6 +10,9 @@ from bot.telegram_bot import (
     price,
     historial,
     guardar,
+    borrar_historial,
+    dejar,
+    grafico,
 )
 from telegram import Update, User, Message
 
@@ -438,3 +442,186 @@ async def test_guardar_correcto(monkeypatch):
     )
     update.message.reply_text.assert_called_once_with(expected, parse_mode="Markdown")
     mock_guardar.assert_called_once_with("1", "AAPL", 154.32)
+
+
+# -------------------------------
+# /borrar_historial
+# -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_borrar_historial_sin_args():
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock()
+    context = MagicMock()
+    context.args = []
+
+    await borrar_historial(update, context)
+
+    update.message.reply_text.assert_called_once_with("Uso: /borrar_historial <TICKER>")
+
+
+@pytest.mark.asyncio
+async def test_borrar_historial_no_existe(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr(
+        "bot.telegram_bot.db.obtener_historial", lambda chat_id, ticker: []
+    )
+
+    await borrar_historial(update, context)
+
+    update.message.reply_text.assert_called_once_with("No hay historial para AAPL.")
+
+
+@pytest.mark.asyncio
+async def test_borrar_historial_ok(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr(
+        "bot.telegram_bot.db.obtener_historial",
+        lambda chat_id, ticker: [(150.0, "2024-05-17 10:00")],
+    )
+    mock_borrar = MagicMock()
+    monkeypatch.setattr("bot.telegram_bot.db.borrar_historial", mock_borrar)
+
+    await borrar_historial(update, context)
+
+    update.message.reply_text.assert_called_once_with(
+        "🗑️ Historial de precios para AAPL eliminado."
+    )
+    mock_borrar.assert_called_once_with("1", "AAPL")
+
+
+# -------------------------------
+# /dejar
+# -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_dejar_sin_args():
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock()
+    context = MagicMock()
+    context.args = []
+
+    await dejar(update, context)
+
+    update.message.reply_text.assert_called_once_with("Uso correcto: /dejar <TICKER>")
+
+
+@pytest.mark.asyncio
+async def test_dejar_no_seguido(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    # Simula que el usuario no sigue nada
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_productos", lambda chat_id: [])
+
+    await dejar(update, context)
+
+    update.message.reply_text.assert_called_once_with("No estás siguiendo 'AAPL'.")
+
+
+@pytest.mark.asyncio
+async def test_dejar_ok(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    productos_seguidos = [("AAPL", 15, "Apple", 100.0, 200.0)]
+    monkeypatch.setattr(
+        "bot.telegram_bot.db.obtener_productos", lambda chat_id: productos_seguidos
+    )
+
+    mock_eliminar = MagicMock()
+    monkeypatch.setattr("bot.telegram_bot.db.eliminar_producto", mock_eliminar)
+
+    await dejar(update, context)
+
+    update.message.reply_text.assert_called_once_with("🗑️ Has dejado de seguir AAPL.")
+    mock_eliminar.assert_called_once_with("1", "AAPL")
+
+
+# -------------------------------
+# /grafico
+# -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_grafico_sin_args():
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock()
+    context = MagicMock()
+    context.args = []
+
+    await grafico(update, context)
+
+    update.message.reply_text.assert_called_once_with("Uso: /grafico <TICKER>")
+
+
+@pytest.mark.asyncio
+async def test_grafico_sin_datos(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.message.reply_photo = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr(
+        "bot.telegram_bot.generar_grafico", lambda chat_id, ticker: None
+    )
+
+    await grafico(update, context)
+
+    update.message.reply_text.assert_called_once_with(
+        "No hay historial suficiente para AAPL."
+    )
+
+
+@pytest.mark.asyncio
+async def test_grafico_valido(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.message.reply_photo = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    # Simula un gráfico generado
+    buffer_simulado = BytesIO(b"imagen_fake")
+    monkeypatch.setattr(
+        "bot.telegram_bot.generar_grafico", lambda chat_id, ticker: buffer_simulado
+    )
+
+    await grafico(update, context)
+
+    update.message.reply_photo.assert_called_once()
+    args, kwargs = update.message.reply_photo.call_args
+    assert kwargs["caption"] == "📈 Historial de precios de AAPL"

@@ -1,10 +1,23 @@
 from bot.db_manager import DatabaseManager
 from bot.get_price import fetch_stock_price
-from bot.telegram_bot import start, comandos, ayuda, seguir, favoritas, price, guardar, historial
+from bot.telegram_bot import (
+    start,
+    comandos,
+    ayuda,
+    seguir,
+    favoritas,
+    price,
+    guardar,
+    historial,
+    borrar_historial,
+    dejar,
+    grafico,
+)
 from dotenv import load_dotenv
 from telegram.ext import Application, CommandHandler
 
 import os
+
 
 load_dotenv()
 
@@ -85,6 +98,7 @@ def prueba_get_price():
 
         print()
 
+
 def prueba_telegram_bot():
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     app = Application.builder().token(TOKEN).build()
@@ -97,6 +111,9 @@ def prueba_telegram_bot():
     app.add_handler(CommandHandler("price", price))
     app.add_handler(CommandHandler("guardar", guardar))
     app.add_handler(CommandHandler("historial", historial))
+    app.add_handler(CommandHandler("borrar_historial", borrar_historial))
+    app.add_handler(CommandHandler("dejar", dejar))
+    app.add_handler(CommandHandler("grafico", grafico))
     # Si tienes alerta, inclúyela también
     print("✅ Bot iniciado.")
     app.run_polling()
