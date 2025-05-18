@@ -1,57 +1,227 @@
 import pytest
-from bot.telegram_bot import start, login_cmd, logout_cmd
-from bot import user_session
+from unittest.mock import AsyncMock, MagicMock
+from bot.telegram_bot import start, comandos, ayuda, seguir, favoritas, price
+from telegram import Update, User, Message
+
+
+# -------------------------------
+# /start
+# -------------------------------
+
 
 @pytest.mark.asyncio
-async def test_start_no_logueado():
-    class FakeMessage:
-        async def reply_text(self, text):
-            self.text = text
+async def test_start_registers_user_and_sends_welcome(monkeypatch):
+    mock_update = MagicMock(spec=Update)
+    mock_user = MagicMock(spec=User, id=123, username="Saso", first_name="Saso")
+    mock_update.effective_user = mock_user
 
-    class FakeUser:
-        id = 1
-        first_name = "Alejandro"
+    mock_message = MagicMock(spec=Message)
+    mock_message.reply_text = AsyncMock()
+    mock_update.message = mock_message
 
-    class FakeUpdate:
-        effective_user = FakeUser()
-        message = FakeMessage()
+    mock_context = MagicMock()
 
-    class FakeContext:
-        args = []
+    mock_agregar_usuario = MagicMock()
+    monkeypatch.setattr("bot.telegram_bot.db.agregar_usuario", mock_agregar_usuario)
 
-    update = FakeUpdate()
-    context = FakeContext()
+    await start(mock_update, mock_context)
 
-    # Asegurar que no está logueado
-    user_session.sessions.clear()
-    await start(update, context)
+    mock_message.reply_text.assert_called_once()
+    mock_agregar_usuario.assert_called_once_with("123", "Saso")
 
-    assert "¡Hola Alejandro" in update.message.text
-    assert "usa /login" in update.message.text
+
+# -------------------------------
+# /comandos
+# -------------------------------
+
 
 @pytest.mark.asyncio
-async def test_login_y_logout():
-    class FakeMessage:
-        async def reply_text(self, text):
-            self.text = text
+async def test_comandos_sends_command_list(monkeypatch):
+    mock_update = MagicMock(spec=Update)
+    mock_message = MagicMock(spec=Message)
+    mock_update.message = mock_message
+    mock_context = MagicMock()
 
-    class FakeUser:
-        id = 42
+    monkeypatch.setattr("bot.telegram_bot.get_commands_text", lambda: "Comandos")
 
-    class FakeUpdate:
-        effective_user = FakeUser()
-        message = FakeMessage()
+    await comandos(mock_update, mock_context)
+    mock_update.message.reply_text.assert_called_once_with(
+        "Comandos", parse_mode="Markdown"
+    )
 
-    class FakeContext:
-        args = []
 
-    update = FakeUpdate()
-    context = FakeContext()
+# -------------------------------
+# /ayuda
+# -------------------------------
 
-    await login_cmd(update, context)
-    assert user_session.is_logged_in(update.effective_user.id)
-    assert "✅ Sesión iniciada" in update.message.text
 
-    await logout_cmd(update, context)
-    assert not user_session.is_logged_in(update.effective_user.id)
-    assert "🔒 Sesión cerrada" in update.message.text
+@pytest.mark.asyncio
+async def test_ayuda_sends_help_text(monkeypatch):
+    mock_update = MagicMock(spec=Update)
+    mock_message = MagicMock(spec=Message)
+    mock_update.message = mock_message
+    mock_context = MagicMock()
+
+    monkeypatch.setattr("bot.telegram_bot.get_help_text", lambda: "Ayuda")
+
+    await ayuda(mock_update, mock_context)
+    mock_update.message.reply_text.assert_called_once_with(
+        "Ayuda", parse_mode="Markdown"
+    )
+
+
+# -------------------------------
+# /seguir
+# -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_seguir_sin_args_envia_uso(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = []
+
+    await seguir(update, context)
+    update.message.reply_text.assert_called_once_with(
+        "Uso: /seguir <TICKER> [INTERVALO] [LIMITE_INF] [LIMITE_SUP]"
+    )
+
+@pytest.mark.asyncio
+async def test_seguir_error_api(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: "FAKE_API_KEY")
+    monkeypatch.setattr(
+        "bot.telegram_bot.fetch_stock_price",
+        lambda *args: {"precio": None, "nombre": None, "error": "No data"},
+    )
+
+    await seguir(update, context)
+    update.message.reply_text.assert_called_with("No se pudo seguir 'AAPL': No data")
+
+
+@pytest.mark.asyncio
+async def test_seguir_valido(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: "FAKE_API_KEY")
+    monkeypatch.setattr(
+        "bot.telegram_bot.fetch_stock_price",
+        lambda *args: {"precio": 100.0, "nombre": "Apple", "error": None},
+    )
+    mock_agregar = MagicMock()
+    monkeypatch.setattr("bot.telegram_bot.db.agregar_producto", mock_agregar)
+
+    await seguir(update, context)
+    update.message.reply_text.assert_called()
+    mock_agregar.assert_called_once()
+
+
+# -------------------------------
+# /favoritas
+# -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_favoritas_vacio(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_productos", lambda chat_id: [])
+
+    await favoritas(update, context)
+    update.message.reply_text.assert_called_with(
+        "Aún no estás siguiendo ninguna acción."
+    )
+
+
+@pytest.mark.asyncio
+async def test_favoritas_con_datos(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+
+    productos = [("AAPL", 60, "Apple", 100.0, 200.0)]
+    monkeypatch.setattr(
+        "bot.telegram_bot.db.obtener_productos", lambda chat_id: productos
+    )
+
+    await favoritas(update, context)
+    update.message.reply_text.assert_called()
+
+
+# -------------------------------
+# /price
+# -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_price_sin_args():
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock()
+    context = MagicMock()
+    context.args = []
+
+    await price(update, context)
+
+    update.message.reply_text.assert_called_once_with("Uso correcto: /price <TICKER>")
+
+
+@pytest.mark.asyncio
+async def test_price_sin_api_key(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock()
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: None)
+
+    await price(update, context)
+
+    update.message.reply_text.assert_called_once_with(
+        "Error: no se ha configurado la clave de la API."
+    )
+
+
+@pytest.mark.asyncio
+async def test_price_valido(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock()
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.os.getenv", lambda k: "FAKE_API_KEY")
+    monkeypatch.setattr(
+        "bot.telegram_bot.fetch_stock_price",
+        lambda *args: {"precio": 123.45, "nombre": "Apple Inc.", "error": None},
+    )
+
+    await price(update, context)
+
+    update.message.reply_text.assert_called_once_with(
+        "📈 *Apple Inc.* (AAPL)\n💰 Precio actual: 123.45$", parse_mode="Markdown"
+    )
