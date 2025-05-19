@@ -100,6 +100,18 @@ class DatabaseManager:
             )
             conn.commit()
 
+    def obtener_usuarios(self) -> List[str]:
+        """
+        Devuelve una lista con todos los IDs de usuario registrados.
+
+        Returns:
+            List[str]: Lista de IDs (chat_id) de todos los usuarios registrados en la base de datos.
+        """
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT chat_id FROM usuarios")
+            return [row[0] for row in cursor.fetchall()]
+
     def agregar_producto(
         self,
         chat_id: str,

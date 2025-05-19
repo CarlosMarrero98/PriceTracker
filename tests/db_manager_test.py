@@ -311,3 +311,18 @@ def test_borrar_historial(db_temp):
     # Comprobamos que fue eliminado
     historial = db_temp.obtener_historial(chat_id, symbol)
     assert historial == []
+
+def test_obtener_usuarios(db_temp):
+    # No debe haber usuarios al principio
+    assert db_temp.obtener_usuarios() == []
+
+    # Insertamos dos usuarios
+    db_temp.agregar_usuario("111", "usuario1")
+    db_temp.agregar_usuario("222", "usuario2")
+
+    usuarios = db_temp.obtener_usuarios()
+
+    assert isinstance(usuarios, list)
+    assert "111" in usuarios
+    assert "222" in usuarios
+    assert len(usuarios) == 2
