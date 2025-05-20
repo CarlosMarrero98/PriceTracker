@@ -4,28 +4,25 @@ import pytest
 import time
 from bot.db_manager import DatabaseManager
 
-
 @pytest.fixture
 def db_temp():
-    # Creamos una base de datos temporal en memoria o archivo
-    db_path = "test_temp.db"
-    if os.path.exists(db_path):
-        os.remove(db_path)
-    yield DatabaseManager(db_path=db_path)
-    if os.path.exists(db_path):
-        os.remove(db_path)
-
+    # Crea una única conexión en memoria y la inyecta en todos los métodos del test
+    conn = sqlite3.connect(":memory:")
+    dbm = DatabaseManager(db_path=":memory:")
+    dbm._conectar = lambda: conn  # Monkeypatch para siempre usar la misma conexión
+    dbm._crear_tablas()  # Crea las tablas en la conexión
+    yield dbm
+    conn.close()
 
 def test_tablas_creadas(db_temp):
     tablas_esperadas = {"usuarios", "productos_seguidos", "historial_precios"}
 
-    with sqlite3.connect(db_temp.db_path) as conn:
+    with db_temp._conectar() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tablas_creadas = {fila[0] for fila in cursor.fetchall()}
 
     assert tablas_esperadas.issubset(tablas_creadas)
-
 
 def test_agregar_usuario_inserta_correctamente(db_temp):
     chat_id = "123456"
@@ -33,7 +30,7 @@ def test_agregar_usuario_inserta_correctamente(db_temp):
 
     db_temp.agregar_usuario(chat_id, username)
 
-    with sqlite3.connect(db_temp.db_path) as conn:
+    with db_temp._conectar() as conn:
         cursor = conn.cursor()
         cursor.execute(
             "SELECT chat_id, username FROM usuarios WHERE chat_id = ?", (chat_id,)
@@ -44,7 +41,6 @@ def test_agregar_usuario_inserta_correctamente(db_temp):
     assert fila[0] == chat_id
     assert fila[1] == username
 
-
 def test_agregar_usuario_no_duplica_si_existe(db_temp):
     chat_id = "123456"
     username = "usuario_test"
@@ -52,13 +48,12 @@ def test_agregar_usuario_no_duplica_si_existe(db_temp):
     db_temp.agregar_usuario(chat_id, username)
     db_temp.agregar_usuario(chat_id, username)  # Segunda vez
 
-    with sqlite3.connect(db_temp.db_path) as conn:
+    with db_temp._conectar() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM usuarios WHERE chat_id = ?", (chat_id,))
         count = cursor.fetchone()[0]
 
     assert count == 1
-
 
 def test_agregar_producto_inserta_correctamente(db_temp):
     chat_id = "123456"
@@ -72,7 +67,7 @@ def test_agregar_producto_inserta_correctamente(db_temp):
         chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup
     )
 
-    with sqlite3.connect(db_temp.db_path) as conn:
+    with db_temp._conectar() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -86,7 +81,6 @@ def test_agregar_producto_inserta_correctamente(db_temp):
 
     assert fila == (chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup)
 
-
 def test_agregar_producto_reemplaza_si_existe(db_temp):
     chat_id = "123456"
     symbol = "AAPL"
@@ -99,7 +93,7 @@ def test_agregar_producto_reemplaza_si_existe(db_temp):
         chat_id, symbol, "Apple Inc. Actualizado", 60, 120.0, 180.0
     )
 
-    with sqlite3.connect(db_temp.db_path) as conn:
+    with db_temp._conectar() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -112,7 +106,6 @@ def test_agregar_producto_reemplaza_si_existe(db_temp):
         fila = cursor.fetchone()
 
     assert fila == ("Apple Inc. Actualizado", 60, 120.0, 180.0)
-
 
 def test_obtener_productos_devuelve_lista_correcta(db_temp):
     chat_id = "123456"
@@ -140,12 +133,10 @@ def test_obtener_productos_devuelve_lista_correcta(db_temp):
 
     assert resultado_obtenido == resultado_esperado
 
-
 def test_obtener_productos_lista_vacia_si_no_hay_productos(db_temp):
     chat_id = "999999"
     resultado = db_temp.obtener_productos(chat_id)
     assert resultado == []
-
 
 def test_guardar_precio_inserta_entrada_correcta(db_temp):
     chat_id = "123456"
@@ -154,7 +145,7 @@ def test_guardar_precio_inserta_entrada_correcta(db_temp):
 
     db_temp.guardar_precio(chat_id, symbol, precio)
 
-    with sqlite3.connect(db_temp.db_path) as conn:
+    with db_temp._conectar() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -171,7 +162,6 @@ def test_guardar_precio_inserta_entrada_correcta(db_temp):
     assert fila[1] == symbol
     assert fila[2] == precio
 
-
 def test_guardar_precio_permite_multiples_registros(db_temp):
     chat_id = "123456"
     symbol = "AAPL"
@@ -180,7 +170,7 @@ def test_guardar_precio_permite_multiples_registros(db_temp):
     for precio in precios:
         db_temp.guardar_precio(chat_id, symbol, precio)
 
-    with sqlite3.connect(db_temp.db_path) as conn:
+    with db_temp._conectar() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -192,7 +182,6 @@ def test_guardar_precio_permite_multiples_registros(db_temp):
         resultados = [fila[0] for fila in cursor.fetchall()]
 
     assert resultados == precios
-
 
 def test_obtener_historial_devuelve_los_ultimos_10(db_temp):
     chat_id = "123456"
@@ -213,7 +202,6 @@ def test_obtener_historial_devuelve_los_ultimos_10(db_temp):
     precios_obtenidos = [fila[0] for fila in historial]
     assert precios_obtenidos == precios[-1:-11:-1]  # últimos 10 en orden inverso
 
-
 def test_obtener_historial_lista_vacia_si_no_hay_registros(db_temp):
     chat_id = "999999"
     symbol = "MSFT"
@@ -221,7 +209,6 @@ def test_obtener_historial_lista_vacia_si_no_hay_registros(db_temp):
     historial = db_temp.obtener_historial(chat_id, symbol)
 
     assert historial == []
-
 
 def test_obtener_estadisticas_calcula_min_max_avg(db_temp):
     chat_id = "123456"
@@ -237,7 +224,6 @@ def test_obtener_estadisticas_calcula_min_max_avg(db_temp):
     assert maximo == max(precios)
     assert round(media, 2) == round(sum(precios) / len(precios), 2)
 
-
 def test_obtener_estadisticas_sin_datos_retorna_none(db_temp):
     chat_id = "999999"
     symbol = "GOOG"
@@ -245,7 +231,6 @@ def test_obtener_estadisticas_sin_datos_retorna_none(db_temp):
     resultado = db_temp.obtener_estadisticas(chat_id, symbol)
 
     assert resultado == (None, None, None)
-
 
 def test_obtener_limites_devuelve_valores_correctos(db_temp):
     chat_id = "123456"
@@ -258,7 +243,6 @@ def test_obtener_limites_devuelve_valores_correctos(db_temp):
     limites = db_temp.obtener_limites(chat_id, symbol)
 
     assert limites == (limite_inf, limite_sup)
-
 
 def test_obtener_limites_retorna_none_si_no_existe(db_temp):
     chat_id = "999999"
@@ -286,7 +270,6 @@ def test_eliminar_producto(db_temp):
     # Comprobamos que fue eliminado
     productos = db_temp.obtener_productos(chat_id)
     assert productos == []
-
 
 def test_borrar_historial(db_temp):
     chat_id = "123"

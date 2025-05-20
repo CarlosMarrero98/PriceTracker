@@ -1,6 +1,5 @@
 import sqlite3
-from typing import List, Tuple
-
+from typing import List, Tuple, Optional
 
 class DatabaseManager:
     """
@@ -37,19 +36,21 @@ class DatabaseManager:
         """
         Crea las tablas necesarias en la base de datos si aún no existen:
 
-        - usuarios: información básica de los usuarios de Telegram.
+        - usuarios: información básica de los usuarios de Telegram y su API Key de TwelveData.
         - productos_seguidos: activos financieros que sigue cada usuario, con configuración de alertas.
         - historial_precios: registros históricos de precios por símbolo y usuario.
         """
         with self._conectar() as conn:
             cursor = conn.cursor()
 
+            # Añadimos una columna para la API Key en la tabla de usuarios
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 chat_id TEXT UNIQUE NOT NULL,
                 username TEXT,
-                fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                api_key TEXT
             );
             """)
 
@@ -78,12 +79,11 @@ class DatabaseManager:
 
             conn.commit()
 
+    # ================== GESTIÓN DE USUARIOS Y API KEY ==================
+
     def agregar_usuario(self, chat_id: str, username: str):
         """
         Inserta un nuevo usuario en la base de datos si no existe ya.
-
-        Este método registra el identificador único de chat de Telegram y el nombre de usuario
-        en la tabla `usuarios`. Si el usuario ya existe, no se realiza ninguna acción.
 
         Args:
             chat_id (str): Identificador único del chat de Telegram.
@@ -100,6 +100,42 @@ class DatabaseManager:
             )
             conn.commit()
 
+    def guardar_api_key(self, chat_id: str, api_key: str):
+        """
+        Guarda o actualiza la API Key de TwelveData para el usuario.
+
+        Args:
+            chat_id (str): Identificador del chat de Telegram.
+            api_key (str): Clave de API de TwelveData.
+        """
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE usuarios SET api_key = ? WHERE chat_id = ?
+                """,
+                (api_key, chat_id)
+            )
+            conn.commit()
+
+    def obtener_api_key(self, chat_id: str) -> Optional[str]:
+        """
+        Devuelve la API Key de TwelveData almacenada para el usuario.
+
+        Args:
+            chat_id (str): Identificador del chat de Telegram.
+
+        Returns:
+            Optional[str]: API Key o None si no está guardada.
+        """
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT api_key FROM usuarios WHERE chat_id = ?", (chat_id,)
+            )
+            result = cursor.fetchone()
+            return result[0] if result else None
+
     def obtener_usuarios(self) -> List[str]:
         """
         Devuelve una lista con todos los IDs de usuario registrados.
@@ -112,6 +148,8 @@ class DatabaseManager:
             cursor.execute("SELECT chat_id FROM usuarios")
             return [row[0] for row in cursor.fetchall()]
 
+    # ================== GESTIÓN DE PRODUCTOS SEGUIDOS ==================
+
     def agregar_producto(
         self,
         chat_id: str,
@@ -123,10 +161,6 @@ class DatabaseManager:
     ):
         """
         Añade o actualiza un activo financiero seguido por un usuario.
-
-        Este método registra el símbolo del activo (por ejemplo, una acción), el nombre de la empresa,
-        el intervalo de comprobación en minutos y los límites de alerta de precio.
-        Si el usuario ya sigue ese activo, la información se actualiza.
 
         Args:
             chat_id (str): Identificador del chat del usuario.
@@ -154,9 +188,6 @@ class DatabaseManager:
         """
         Recupera la lista de activos financieros seguidos por un usuario.
 
-        Devuelve una lista de tuplas con el símbolo del activo, el intervalo de comprobación
-        y el nombre de la empresa, asociados al `chat_id` proporcionado.
-
         Args:
             chat_id (str): Identificador del chat del usuario.
 
@@ -175,12 +206,53 @@ class DatabaseManager:
             )
             return cursor.fetchall()
 
+    def eliminar_producto(self, chat_id: str, symbol: str):
+        """
+        Elimina un activo financiero que el usuario ha dejado de seguir.
+
+        Args:
+            chat_id (str): Identificador del usuario de Telegram.
+            symbol (str): Símbolo del activo a eliminar.
+        """
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                DELETE FROM productos_seguidos
+                WHERE chat_id = ? AND symbol = ?
+                """,
+                (chat_id, symbol),
+            )
+            conn.commit()
+
+    def obtener_limites(self, chat_id: str, symbol: str) -> Tuple[float, float]:
+        """
+        Recupera los límites de alerta configurados por el usuario para un activo financiero.
+
+        Args:
+            chat_id (str): Identificador del chat del usuario.
+            symbol (str): Símbolo del activo financiero.
+
+        Returns:
+            Tuple[float, float]: Tupla con (limite_inferior, limite_superior).
+        """
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT limite_inferior, limite_superior
+                FROM productos_seguidos
+                WHERE chat_id = ? AND symbol = ?
+            """,
+                (chat_id, symbol),
+            )
+            return cursor.fetchone()
+
+    # ================== GESTIÓN DEL HISTORIAL DE PRECIOS ==================
+
     def guardar_precio(self, chat_id: str, symbol: str, precio: float):
         """
         Guarda un nuevo registro de precio en el historial para un activo seguido por el usuario.
-
-        Este método inserta una entrada en la tabla `historial_precios` con el precio
-        actual del activo financiero correspondiente.
 
         Args:
             chat_id (str): Identificador del chat del usuario.
@@ -202,9 +274,6 @@ class DatabaseManager:
         """
         Obtiene el historial reciente de precios para un activo seguido por un usuario.
 
-        Recupera los últimos 10 registros de precios, ordenados del más reciente al más antiguo,
-        junto con sus respectivas marcas de tiempo.
-
         Args:
             chat_id (str): Identificador del chat del usuario.
             symbol (str): Símbolo del activo financiero.
@@ -225,78 +294,6 @@ class DatabaseManager:
             )
             return cursor.fetchall()
 
-    def obtener_estadisticas(
-        self, chat_id: str, symbol: str
-    ) -> Tuple[float, float, float]:
-        """
-        Calcula estadísticas básicas de precios para un activo seguido por un usuario.
-
-        Devuelve el precio mínimo, máximo y promedio del historial completo de dicho activo.
-
-        Args:
-            chat_id (str): Identificador del chat del usuario.
-            symbol (str): Símbolo del activo financiero.
-
-        Returns:
-            Tuple[float, float, float]: Tupla con los valores (mínimo, máximo, promedio).
-        """
-        with self._conectar() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT MIN(precio), MAX(precio), AVG(precio)
-                FROM historial_precios
-                WHERE chat_id = ? AND symbol = ?
-            """,
-                (chat_id, symbol),
-            )
-            return cursor.fetchone()
-
-    def obtener_limites(self, chat_id: str, symbol: str) -> Tuple[float, float]:
-        """
-        Recupera los límites de alerta configurados por el usuario para un activo financiero.
-
-        Obtiene los valores de límite inferior y límite superior de precio para el activo
-        especificado, que se usan para enviar notificaciones cuando el precio se sale de ese rango.
-
-        Args:
-            chat_id (str): Identificador del chat del usuario.
-            symbol (str): Símbolo del activo financiero.
-
-        Returns:
-            Tuple[float, float]: Tupla con (limite_inferior, limite_superior).
-        """
-        with self._conectar() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT limite_inferior, limite_superior
-                FROM productos_seguidos
-                WHERE chat_id = ? AND symbol = ?
-            """,
-                (chat_id, symbol),
-            )
-            return cursor.fetchone()
-
-    def eliminar_producto(self, chat_id: str, symbol: str):
-        """
-        Elimina un activo financiero que el usuario ha dejado de seguir.
-
-        Args:
-            chat_id (str): Identificador del usuario de Telegram.
-            symbol (str): Símbolo del activo a eliminar.
-        """
-        with self._conectar() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                DELETE FROM productos_seguidos
-                WHERE chat_id = ? AND symbol = ?
-                """,
-                (chat_id, symbol),
-            )
-            conn.commit()
-
     def borrar_historial(self, chat_id: str, symbol: str):
         """
         Elimina el historial de precios de un símbolo para un usuario específico.
@@ -316,3 +313,27 @@ class DatabaseManager:
             )
             conn.commit()
 
+    def obtener_estadisticas(
+        self, chat_id: str, symbol: str
+    ) -> Tuple[float, float, float]:
+        """
+        Calcula estadísticas básicas de precios para un activo seguido por un usuario.
+
+        Args:
+            chat_id (str): Identificador del chat del usuario.
+            symbol (str): Símbolo del activo financiero.
+
+        Returns:
+            Tuple[float, float, float]: Tupla con los valores (mínimo, máximo, promedio).
+        """
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT MIN(precio), MAX(precio), AVG(precio)
+                FROM historial_precios
+                WHERE chat_id = ? AND symbol = ?
+            """,
+                (chat_id, symbol),
+            )
+            return cursor.fetchone()

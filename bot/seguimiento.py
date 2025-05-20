@@ -1,6 +1,4 @@
-
 import asyncio
-import os
 from bot.db_instance import db
 from bot.get_price import fetch_stock_price
 from collections import defaultdict
@@ -26,6 +24,7 @@ async def comprobar_alertas_periodicamente(app) -> None:
     """
     Bucle principal que revisa periódicamente los precios de los activos seguidos por los usuarios.
 
+    - Para cada usuario, recupera su API Key almacenada.
     - Verifica si ha pasado suficiente tiempo según el intervalo configurado.
     - Guarda el nuevo precio en la base de datos.
     - Si el precio está fuera de los límites definidos, envía una alerta al usuario por Telegram.
@@ -41,6 +40,11 @@ async def comprobar_alertas_periodicamente(app) -> None:
         usuarios = db.obtener_usuarios()
 
         for chat_id in usuarios:
+            api_key = db.obtener_api_key(chat_id)
+            if not api_key:
+                print(f"Usuario {chat_id} no tiene API Key registrada. Saltando alertas.")
+                continue
+
             productos = db.obtener_productos(chat_id)
 
             for symbol, intervalo_min, nombre, limite_inf, limite_sup in productos:
@@ -52,7 +56,8 @@ async def comprobar_alertas_periodicamente(app) -> None:
 
                 ultima_revision[clave] = ahora
 
-                data = fetch_stock_price(symbol, os.getenv("TWELVE_API_KEY"))
+                # Usa la API Key del usuario
+                data = fetch_stock_price(symbol, api_key)
 
                 if data["error"] or data["precio"] is None:
                     print(f"Error en {symbol}: {data['error']}")

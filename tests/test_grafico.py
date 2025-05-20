@@ -1,7 +1,6 @@
 import io
 from bot.grafico import generar_grafico
 
-
 def test_generar_grafico_con_datos(monkeypatch):
     # Simula historial válido
     historial = [
@@ -20,7 +19,6 @@ def test_generar_grafico_con_datos(monkeypatch):
     buffer = generar_grafico("123", "AAPL")
     assert isinstance(buffer, io.BytesIO)
     assert buffer.getbuffer().nbytes > 0
-
 
 def test_generar_grafico_sin_datos(monkeypatch):
     class MockDB:
