@@ -210,20 +210,34 @@ class DatabaseManager:
             )
             return cursor.fetchone()
 
-    # ========== Exportar historial completo para CSV ==========
-
-    def obtener_historial_usuario(self, chat_id: str) -> list:
+    # ========== Exportar historial para CSV ==========
+    def obtener_historial_usuario(self, chat_id: str, ticker: str = None) -> list:
+        """
+        Devuelve todo el historial de precios de un usuario en formato lista de diccionarios.
+        Si se indica ticker, filtra solo para ese símbolo.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT symbol, precio, timestamp
-                FROM historial_precios
-                WHERE chat_id = ?
-                ORDER BY timestamp ASC
-                """,
-                (chat_id,)
-            )
+            if ticker:
+                cursor.execute(
+                    """
+                    SELECT symbol, precio, timestamp
+                    FROM historial_precios
+                    WHERE chat_id = ? AND symbol = ?
+                    ORDER BY timestamp ASC
+                    """,
+                    (chat_id, ticker)
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT symbol, precio, timestamp
+                    FROM historial_precios
+                    WHERE chat_id = ?
+                    ORDER BY timestamp ASC
+                    """,
+                    (chat_id,)
+                )
             rows = cursor.fetchall()
             historial = [
                 {
@@ -239,12 +253,6 @@ class DatabaseManager:
     def obtener_favoritas_usuario(self, chat_id: str) -> list:
         """
         Devuelve todas las acciones favoritas (seguidas) por el usuario como lista de diccionarios.
-
-        Args:
-            chat_id (str): Identificador del chat del usuario.
-
-        Returns:
-            List[dict]: Lista de acciones con columnas: símbolo, nombre, intervalo, límite inferior y superior.
         """
         with self._conectar() as conn:
             cursor = conn.cursor()

@@ -15,33 +15,39 @@ import io
 
 PEDIR_API_KEY = 1
 
-# ==================== EXPORTAR HISTORIAL CSV ====================
+# ==================== EXPORTAR HISTORIAL CSV (todo o por ticker) ====================
 
 async def exportar_historial(update, context):
     """
-    Exporta todo el historial de precios del usuario a un archivo CSV y lo envía por Telegram.
+    Exporta el historial de precios del usuario (todas o una sola acción) a un archivo CSV.
     """
     if update.effective_user is None or update.message is None:
         return
 
     chat_id = str(update.effective_user.id)
-    historial = db.obtener_historial_usuario(chat_id)
+    ticker = context.args[0].strip().upper() if context.args else None
+
+    historial = db.obtener_historial_usuario(chat_id, ticker)
 
     if not historial:
-        await update.message.reply_text("No tienes historial de precios aún.")
+        if ticker:
+            await update.message.reply_text(f"No tienes historial guardado para {ticker}.")
+        else:
+            await update.message.reply_text("No tienes historial de precios aún.")
         return
 
-    # DataFrame para pandas
+    nombre_archivo = f"historial_{ticker}.csv" if ticker else "historial.csv"
     df = pd.DataFrame(historial)
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
     buffer.seek(0)
 
     await update.message.reply_document(
-        document=InputFile(io.BytesIO(buffer.getvalue().encode()), filename="historial.csv"),
-        filename="historial.csv",
-        caption="Aquí tienes tu historial de precios en formato CSV."
+        document=InputFile(io.BytesIO(buffer.getvalue().encode()), filename=nombre_archivo),
+        filename=nombre_archivo,
+        caption=f"Aquí tienes tu historial {'de ' + ticker if ticker else 'completo'} en formato CSV."
     )
+
 # ==================== EXPORTAR FAVORITAS CSV ====================
 
 async def exportar_favoritas(update, context):
@@ -58,7 +64,6 @@ async def exportar_favoritas(update, context):
         await update.message.reply_text("No estás siguiendo ninguna acción aún.")
         return
 
-    # DataFrame para pandas
     df = pd.DataFrame(favoritas)
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
@@ -348,3 +353,4 @@ async def grafico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_photo(
         photo=InputFile(buffer), caption=f"📈 Historial de precios de {ticker}"
     )
+
