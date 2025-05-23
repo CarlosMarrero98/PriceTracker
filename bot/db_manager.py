@@ -1,22 +1,51 @@
+"""
+Módulo: db.py
+
+Este módulo implementa el gestor de base de datos SQLite para el proyecto PriceTracker.
+Permite gestionar usuarios, API keys, productos seguidos, historial de precios y exportación a CSV.
+Compatible con bots de Telegram y preparado para documentación técnica automática.
+
+Autor: Alejandro Pérez Escobar
+Fecha: 2024-05-22
+"""
+
 import sqlite3
 from typing import List, Tuple, Optional
 
 class DatabaseManager:
     """
     Gestor de base de datos SQLite para el seguimiento de precios de activos financieros.
+
+    Este gestor abstrae todas las operaciones de almacenamiento y recuperación de datos,
+    centralizando la lógica de acceso a la base de datos para el bot PriceTracker.
     """
 
-    def __init__(self, db_path="basedatos.db"):
+    def __init__(self, db_path: str = "basedatos.db"):
+        """
+        Inicializa el gestor de base de datos, creando las tablas necesarias si no existen.
+
+        Args:
+            db_path (str, optional): Ruta del archivo SQLite. Por defecto 'basedatos.db'.
+        """
         self.db_path = db_path
         self._crear_tablas()
 
-    def _conectar(self):
+    def _conectar(self) -> sqlite3.Connection:
+        """
+        Abre una nueva conexión a la base de datos SQLite.
+
+        Returns:
+            sqlite3.Connection: Objeto de conexión a la base de datos.
+        """
         return sqlite3.connect(self.db_path)
 
     def _crear_tablas(self):
+        """
+        Crea las tablas principales (usuarios, productos_seguidos, historial_precios) si no existen.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
-
+            # Tabla de usuarios (incluye API Key)
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,7 +55,7 @@ class DatabaseManager:
                 api_key TEXT
             );
             """)
-
+            # Tabla de productos seguidos
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS productos_seguidos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +68,7 @@ class DatabaseManager:
                 UNIQUE(chat_id, symbol)
             );
             """)
-
+            # Tabla de historial de precios
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS historial_precios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,24 +78,37 @@ class DatabaseManager:
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             );
             """)
-
             conn.commit()
 
     # ================== GESTIÓN DE USUARIOS Y API KEY ==================
 
     def agregar_usuario(self, chat_id: str, username: str):
+        """
+        Registra un usuario en la base de datos si no existe.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+            username (str): Nombre de usuario de Telegram.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT OR IGNORE INTO usuarios (chat_id, username)
                 VALUES (?, ?)
-            """,
+                """,
                 (chat_id, username),
             )
             conn.commit()
 
     def guardar_api_key(self, chat_id: str, api_key: str):
+        """
+        Guarda o actualiza la API Key de TwelveData para el usuario.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+            api_key (str): Clave API de TwelveData.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -78,6 +120,15 @@ class DatabaseManager:
             conn.commit()
 
     def obtener_api_key(self, chat_id: str) -> Optional[str]:
+        """
+        Recupera la API Key de un usuario.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+
+        Returns:
+            Optional[str]: API Key si existe, None en caso contrario.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -87,6 +138,12 @@ class DatabaseManager:
             return result[0] if result else None
 
     def obtener_usuarios(self) -> List[str]:
+        """
+        Devuelve la lista de todos los chat_id de los usuarios registrados.
+
+        Returns:
+            List[str]: Lista de chat_id de Telegram.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT chat_id FROM usuarios")
@@ -103,6 +160,17 @@ class DatabaseManager:
         limite_inf: float = 0.0,
         limite_sup: float = 0.0,
     ):
+        """
+        Añade o actualiza un producto seguido por el usuario.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+            symbol (str): Ticker de la acción.
+            nombre_empresa (str): Nombre de la empresa.
+            intervalo (int, optional): Minutos entre comprobaciones. Default 15.
+            limite_inf (float, optional): Límite inferior de alerta. Default 0.0.
+            limite_sup (float, optional): Límite superior de alerta. Default 0.0.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -110,7 +178,7 @@ class DatabaseManager:
                 INSERT OR REPLACE INTO productos_seguidos (
                     chat_id, symbol, nombre_empresa, intervalo_min, limite_inferior, limite_superior
                 ) VALUES (?, ?, ?, ?, ?, ?)
-            """,
+                """,
                 (chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup),
             )
             conn.commit()
@@ -118,6 +186,15 @@ class DatabaseManager:
     def obtener_productos(
         self, chat_id: str
     ) -> List[Tuple[str, int, str, float, float]]:
+        """
+        Obtiene la lista de acciones seguidas por un usuario.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+
+        Returns:
+            List[Tuple[str, int, str, float, float]]: Lista de tuplas con información de acciones seguidas.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -125,12 +202,19 @@ class DatabaseManager:
                 SELECT symbol, intervalo_min, nombre_empresa, limite_inferior, limite_superior
                 FROM productos_seguidos
                 WHERE chat_id = ?
-            """,
+                """,
                 (chat_id,),
             )
             return cursor.fetchall()
 
     def eliminar_producto(self, chat_id: str, symbol: str):
+        """
+        Elimina una acción seguida para un usuario.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+            symbol (str): Ticker de la acción.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -143,6 +227,16 @@ class DatabaseManager:
             conn.commit()
 
     def obtener_limites(self, chat_id: str, symbol: str) -> Tuple[float, float]:
+        """
+        Recupera los límites configurados para una acción seguida por el usuario.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+            symbol (str): Ticker de la acción.
+
+        Returns:
+            Tuple[float, float]: Límite inferior y superior configurados.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -150,7 +244,7 @@ class DatabaseManager:
                 SELECT limite_inferior, limite_superior
                 FROM productos_seguidos
                 WHERE chat_id = ? AND symbol = ?
-            """,
+                """,
                 (chat_id, symbol),
             )
             return cursor.fetchone()
@@ -158,18 +252,36 @@ class DatabaseManager:
     # ================== GESTIÓN DEL HISTORIAL DE PRECIOS ==================
 
     def guardar_precio(self, chat_id: str, symbol: str, precio: float):
+        """
+        Guarda un nuevo precio para una acción seguida en el historial del usuario.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+            symbol (str): Ticker de la acción.
+            precio (float): Precio registrado.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT INTO historial_precios (chat_id, symbol, precio)
                 VALUES (?, ?, ?)
-            """,
+                """,
                 (chat_id, symbol, precio),
             )
             conn.commit()
 
     def obtener_historial(self, chat_id: str, symbol: str) -> List[Tuple[float, str]]:
+        """
+        Recupera el historial de precios recientes para una acción de un usuario.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+            symbol (str): Ticker de la acción.
+
+        Returns:
+            List[Tuple[float, str]]: Lista de tuplas (precio, timestamp), ordenados por fecha descendente.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -178,12 +290,19 @@ class DatabaseManager:
                 WHERE chat_id = ? AND symbol = ?
                 ORDER BY id DESC
                 LIMIT 10
-            """,
+                """,
                 (chat_id, symbol),
             )
             return cursor.fetchall()
 
     def borrar_historial(self, chat_id: str, symbol: str):
+        """
+        Borra todo el historial de precios para una acción de un usuario.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+            symbol (str): Ticker de la acción.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -198,6 +317,16 @@ class DatabaseManager:
     def obtener_estadisticas(
         self, chat_id: str, symbol: str
     ) -> Tuple[float, float, float]:
+        """
+        Calcula estadísticas básicas del historial de precios de una acción.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+            symbol (str): Ticker de la acción.
+
+        Returns:
+            Tuple[float, float, float]: Mínimo, máximo y promedio de precios.
+        """
         with self._conectar() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -205,7 +334,7 @@ class DatabaseManager:
                 SELECT MIN(precio), MAX(precio), AVG(precio)
                 FROM historial_precios
                 WHERE chat_id = ? AND symbol = ?
-            """,
+                """,
                 (chat_id, symbol),
             )
             return cursor.fetchone()
@@ -214,7 +343,15 @@ class DatabaseManager:
     def obtener_historial_usuario(self, chat_id: str, ticker: str = None) -> list:
         """
         Devuelve todo el historial de precios de un usuario en formato lista de diccionarios.
-        Si se indica ticker, filtra solo para ese símbolo.
+
+        Si se indica un ticker, filtra solo para ese símbolo.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+            ticker (str, optional): Ticker de la acción. Si es None, devuelve todo el historial.
+
+        Returns:
+            list: Lista de diccionarios con las claves 'Símbolo', 'Precio' y 'Fecha'.
         """
         with self._conectar() as conn:
             cursor = conn.cursor()
@@ -253,6 +390,12 @@ class DatabaseManager:
     def obtener_favoritas_usuario(self, chat_id: str) -> list:
         """
         Devuelve todas las acciones favoritas (seguidas) por el usuario como lista de diccionarios.
+
+        Args:
+            chat_id (str): ID de usuario de Telegram.
+
+        Returns:
+            list: Lista de diccionarios con las claves 'Símbolo', 'Nombre', 'Intervalo (min)', 'Límite Inferior' y 'Límite Superior'.
         """
         with self._conectar() as conn:
             cursor = conn.cursor()
@@ -277,3 +420,4 @@ class DatabaseManager:
                 for row in rows
             ]
             return favoritas
+

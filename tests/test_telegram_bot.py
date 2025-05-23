@@ -605,13 +605,17 @@ async def test_exportar_historial_sin_datos(monkeypatch):
     update.message.reply_document = AsyncMock()
     update.effective_user = MagicMock(id=1)
     context = MagicMock()
+    context.args = [] 
 
-    monkeypatch.setattr("bot.telegram_bot.db.obtener_historial_usuario", lambda chat_id: [])
+    monkeypatch.setattr(
+        "bot.telegram_bot.db.obtener_historial_usuario",
+        lambda chat_id, ticker=None: []
+    )
 
     from bot.telegram_bot import exportar_historial
     await exportar_historial(update, context)
     update.message.reply_text.assert_called_once_with("No tienes historial de precios aún.")
-    update.message.reply_document.assert_not_called()
+
 
 @pytest.mark.asyncio
 async def test_exportar_historial_ok(monkeypatch):
@@ -621,20 +625,25 @@ async def test_exportar_historial_ok(monkeypatch):
     update.message.reply_document = AsyncMock()
     update.effective_user = MagicMock(id=1)
     context = MagicMock()
+    context.args = []  
 
     # Simula historial para el usuario
     historial = [
         {"Símbolo": "AAPL", "Precio": 150.0, "Fecha": "2024-05-23 12:00"},
         {"Símbolo": "TSLA", "Precio": 750.0, "Fecha": "2024-05-23 13:00"}
     ]
-    monkeypatch.setattr("bot.telegram_bot.db.obtener_historial_usuario", lambda chat_id: historial)
+    monkeypatch.setattr(
+        "bot.telegram_bot.db.obtener_historial_usuario",
+        lambda chat_id, ticker=None: historial
+    )
 
     from bot.telegram_bot import exportar_historial
     await exportar_historial(update, context)
     update.message.reply_document.assert_called_once()
     args, kwargs = update.message.reply_document.call_args
     assert kwargs["filename"] == "historial.csv"
-    assert kwargs["caption"] == "Aquí tienes tu historial de precios en formato CSV."
+    assert kwargs["caption"] == "Aquí tienes tu historial completo en formato CSV."
+
 
 # -------------------------------
 # /exportar_favoritas

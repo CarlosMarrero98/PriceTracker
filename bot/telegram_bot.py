@@ -19,16 +19,27 @@ PEDIR_API_KEY = 1
 
 async def exportar_historial(update, context):
     """
-    Exporta el historial de precios del usuario (todas o una sola acción) a un archivo CSV.
+    Exporta el historial de precios del usuario a un archivo CSV.
+    
+    Si el usuario proporciona un ticker, solo exporta ese. Si no, exporta todo el historial.
+    Envía el archivo CSV al usuario a través de Telegram.
+
+    Args:
+        update (telegram.Update): El objeto Update recibido del manejador de comandos.
+        context (telegram.ext.CallbackContext): Contexto del comando con argumentos.
     """
     if update.effective_user is None or update.message is None:
         return
 
     chat_id = str(update.effective_user.id)
-    ticker = context.args[0].strip().upper() if context.args else None
+    # Compatibilidad con tests: asegúrate de que context.args siempre es lista
+    args = list(context.args) if hasattr(context, 'args') and isinstance(context.args, (list, tuple)) else []
+    ticker = args[0].strip().upper() if args else None
 
+    # Obtiene historial (todo o filtrado)
     historial = db.obtener_historial_usuario(chat_id, ticker)
 
+    # Si no hay historial, envía mensaje adecuado según si se filtró por ticker
     if not historial:
         if ticker:
             await update.message.reply_text(f"No tienes historial guardado para {ticker}.")
@@ -36,12 +47,14 @@ async def exportar_historial(update, context):
             await update.message.reply_text("No tienes historial de precios aún.")
         return
 
+    # Prepara el archivo CSV en memoria
     nombre_archivo = f"historial_{ticker}.csv" if ticker else "historial.csv"
     df = pd.DataFrame(historial)
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
     buffer.seek(0)
 
+    # Envía el archivo CSV al usuario
     await update.message.reply_document(
         document=InputFile(io.BytesIO(buffer.getvalue().encode()), filename=nombre_archivo),
         filename=nombre_archivo,
@@ -52,7 +65,13 @@ async def exportar_historial(update, context):
 
 async def exportar_favoritas(update, context):
     """
-    Exporta la lista de acciones favoritas (seguidas) del usuario a un archivo CSV y lo envía por Telegram.
+    Exporta la lista de acciones favoritas del usuario a un archivo CSV.
+
+    Envía el archivo CSV al usuario a través de Telegram.
+
+    Args:
+        update (telegram.Update): El objeto Update recibido del manejador de comandos.
+        context (telegram.ext.CallbackContext): Contexto del comando.
     """
     if update.effective_user is None or update.message is None:
         return
@@ -64,6 +83,7 @@ async def exportar_favoritas(update, context):
         await update.message.reply_text("No estás siguiendo ninguna acción aún.")
         return
 
+    # Prepara y envía el archivo CSV
     df = pd.DataFrame(favoritas)
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
@@ -75,9 +95,12 @@ async def exportar_favoritas(update, context):
         caption="Aquí tienes tu lista de acciones favoritas en formato CSV."
     )
 
-# ============ RESTO DE HANDLERS ============
+# ==================== PETICIÓN Y GESTIÓN DE API KEY ====================
 
 async def pedir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Solicita al usuario que introduzca la API Key de TwelveData.
+    """
     await update.message.reply_text(
         "🔑 Antes de continuar, necesito tu API Key de TwelveData para poder consultar precios.\n"
         "Puedes obtener una gratis en https://twelvedata.com/. Envíamela ahora:"
@@ -85,6 +108,13 @@ async def pedir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return PEDIR_API_KEY
 
 async def recibir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Guarda la API Key proporcionada por el usuario y finaliza la conversación.
+
+    Args:
+        update (telegram.Update): El objeto Update recibido del manejador de comandos.
+        context (telegram.ext.CallbackContext): Contexto del comando.
+    """
     chat_id = str(update.effective_user.id)
     api_key = update.message.text.strip()
     db.guardar_api_key(chat_id, api_key)
@@ -93,7 +123,14 @@ async def recibir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ConversationHandler.END
 
+# ==================== COMANDOS PRINCIPALES DEL BOT ====================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Maneja el comando /start: registra al usuario y envía un mensaje de bienvenida.
+
+    Si el usuario no tiene API Key, la solicita.
+    """
     user = update.effective_user
     if user is None or update.message is None:
         return
@@ -114,14 +151,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(mensaje)
 
 async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Envía la lista de comandos disponibles al usuario.
+    """
     if update.message:
         await update.message.reply_text(get_commands_text(), parse_mode="Markdown")
 
 async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Envía la ayuda detallada del bot al usuario.
+    """
     if update.message:
         await update.message.reply_text(get_help_text(), parse_mode="Markdown")
 
+# ==================== SEGUIMIENTO Y FAVORITOS ====================
+
 async def seguir(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Permite al usuario seguir una acción/ticker. Registra el seguimiento en la base de datos.
+
+    Sintaxis: /seguir <TICKER> [INTERVALO] [LIMITE_INF] [LIMITE_SUP]
+    """
     if update.message is None or update.effective_user is None:
         return
 
@@ -137,6 +187,7 @@ async def seguir(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     limite_inf = 0.0
     limite_sup = 0.0
 
+    # Procesa los argumentos opcionales
     try:
         if len(context.args) >= 2:
             intervalo = int(context.args[1])
@@ -173,6 +224,9 @@ async def seguir(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 async def favoritas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Lista todas las acciones favoritas/seguidas del usuario.
+    """
     if update.message is None or update.effective_user is None:
         return
 
@@ -192,7 +246,14 @@ async def favoritas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     await update.message.reply_text(mensaje.strip(), parse_mode="Markdown")
 
+# ==================== CONSULTA DE PRECIOS Y GUARDADO ====================
+
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Devuelve el precio actual de una acción.
+
+    Sintaxis: /price <TICKER>
+    """
     if update.effective_user is None or update.message is None:
         return
 
@@ -222,6 +283,11 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def guardar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Guarda el precio actual de una acción en el historial del usuario.
+
+    Sintaxis: /guardar <TICKER>
+    """
     if update.effective_user is None or update.message is None:
         return
 
@@ -257,7 +323,14 @@ async def guardar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
     )
 
+# ==================== HISTORIAL DE PRECIOS Y GESTIÓN ====================
+
 async def historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Devuelve el historial de precios de una acción concreta guardada por el usuario.
+
+    Sintaxis: /historial <TICKER>
+    """
     if update.effective_user is None or update.message is None:
         return
 
@@ -296,6 +369,11 @@ async def historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def borrar_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Borra el historial de precios de una acción para el usuario.
+
+    Sintaxis: /borrar_historial <TICKER>
+    """
     if update.effective_user is None or update.message is None:
         return
 
@@ -314,7 +392,14 @@ async def borrar_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.borrar_historial(chat_id, ticker)
     await update.message.reply_text(f"🗑️ Historial de precios para {ticker} eliminado.")
 
+# ==================== GESTIÓN DE ACCIONES FAVORITAS ====================
+
 async def dejar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Permite dejar de seguir una acción concreta.
+
+    Sintaxis: /dejar <TICKER>
+    """
     if update.effective_user is None or update.message is None:
         return
 
@@ -334,7 +419,14 @@ async def dejar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.eliminar_producto(chat_id, ticker)
     await update.message.reply_text(f"🗑️ Has dejado de seguir {ticker}.")
 
+# ==================== GRÁFICO DEL HISTORIAL DE PRECIOS ====================
+
 async def grafico(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Genera y envía un gráfico del historial de precios de una acción seguida.
+
+    Sintaxis: /grafico <TICKER>
+    """
     if update.effective_user is None or update.message is None:
         return
 
