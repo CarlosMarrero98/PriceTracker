@@ -43,7 +43,7 @@ class DatabaseManager:
         with self._conectar() as conn:
             cursor = conn.cursor()
 
-            # Añadimos una columna para la API Key en la tabla de usuarios
+            # Tabla de usuarios con API Key
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -337,3 +337,38 @@ class DatabaseManager:
                 (chat_id, symbol),
             )
             return cursor.fetchone()
+
+    # ========== Exportar historial completo para CSV ==========
+
+    def obtener_historial_usuario(self, chat_id: str) -> list:
+        """
+        Devuelve todo el historial de precios de un usuario en formato lista de diccionarios.
+
+        Args:
+            chat_id (str): Identificador del chat del usuario.
+
+        Returns:
+            List[dict]: Lista de registros con las columnas: símbolo, precio, fecha.
+        """
+        with self._conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT symbol, precio, timestamp
+                FROM historial_precios
+                WHERE chat_id = ?
+                ORDER BY timestamp ASC
+                """,
+                (chat_id,)
+            )
+            rows = cursor.fetchall()
+            # Convertimos a lista de diccionarios para pandas
+            historial = [
+                {
+                    "Símbolo": row[0],
+                    "Precio": row[1],
+                    "Fecha": row[2]
+                }
+                for row in rows
+            ]
+            return historial

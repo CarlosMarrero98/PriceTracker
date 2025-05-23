@@ -1,6 +1,5 @@
 from telegram import Update, InputFile
 from telegram.ext import (
-    ApplicationBuilder,
     CommandHandler,
     MessageHandler,
     ContextTypes,
@@ -11,20 +10,42 @@ from bot.mensajes_ayuda import get_commands_text, get_help_text
 from bot.get_price import fetch_stock_price
 from bot.grafico import generar_grafico
 from bot.db_instance import db
-import os
+import pandas as pd
+import io
 
 PEDIR_API_KEY = 1
 
-async def pedir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Solicita la API Key de TwelveData al usuario si no la tiene registrada.
+# ==================== EXPORTAR HISTORIAL CSV ====================
 
-    Args:
-        update (Update): Objeto de actualización de Telegram recibido por el bot.
-        context (ContextTypes.DEFAULT_TYPE): Contexto de ejecución del bot.
-    Returns:
-        int: Estado de la conversación (PEDIR_API_KEY).
+async def exportar_historial(update, context):
     """
+    Exporta todo el historial de precios del usuario a un archivo CSV y lo envía por Telegram.
+    """
+    if update.effective_user is None or update.message is None:
+        return
+
+    chat_id = str(update.effective_user.id)
+    historial = db.obtener_historial_usuario(chat_id)
+
+    if not historial:
+        await update.message.reply_text("No tienes historial de precios aún.")
+        return
+
+    # DataFrame para pandas
+    df = pd.DataFrame(historial)
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
+    buffer.seek(0)
+
+    await update.message.reply_document(
+        document=InputFile(io.BytesIO(buffer.getvalue().encode()), filename="historial.csv"),
+        filename="historial.csv",
+        caption="Aquí tienes tu historial de precios en formato CSV."
+    )
+
+# ============ RESTO DE HANDLERS ============
+
+async def pedir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🔑 Antes de continuar, necesito tu API Key de TwelveData para poder consultar precios.\n"
         "Puedes obtener una gratis en https://twelvedata.com/. Envíamela ahora:"
@@ -32,15 +53,6 @@ async def pedir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return PEDIR_API_KEY
 
 async def recibir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Recibe y guarda la API Key enviada por el usuario, asociándola a su chat_id.
-
-    Args:
-        update (Update): Objeto de actualización de Telegram.
-        context (ContextTypes.DEFAULT_TYPE): Contexto de ejecución del bot.
-    Returns:
-        int: Finaliza el estado conversacional tras guardar la clave.
-    """
     chat_id = str(update.effective_user.id)
     api_key = update.message.text.strip()
     db.guardar_api_key(chat_id, api_key)
@@ -50,17 +62,6 @@ async def recibir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Registra al usuario en la base de datos y gestiona la petición de API Key si no está registrada.
-
-    Si el usuario no tiene clave, la solicita y entra en el estado conversacional adecuado.
-
-    Args:
-        update (Update): Objeto de actualización de Telegram recibido por el bot.
-        context (ContextTypes.DEFAULT_TYPE): Contexto de ejecución del bot.
-    Returns:
-        int or None: Retorna el siguiente estado si es necesario pedir la API Key.
-    """
     user = update.effective_user
     if user is None or update.message is None:
         return
@@ -81,37 +82,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(mensaje)
 
 async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Envía un mensaje con la lista de comandos disponibles y sus descripciones.
-
-    Args:
-        update (Update): Objeto de actualización de Telegram.
-        context (ContextTypes.DEFAULT_TYPE): Contexto de ejecución del bot.
-    """
     if update.message:
         await update.message.reply_text(get_commands_text(), parse_mode="Markdown")
 
 async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Proporciona un mensaje de ayuda explicando cómo usar el bot y sus funcionalidades básicas.
-
-    Args:
-        update (Update): Objeto de actualización de Telegram.
-        context (ContextTypes.DEFAULT_TYPE): Contexto de ejecución del bot.
-    """
     if update.message:
         await update.message.reply_text(get_help_text(), parse_mode="Markdown")
 
 async def seguir(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Permite al usuario seguir una acción bursátil y establecer alertas personalizadas.
-
-    Sintaxis esperada: /seguir <TICKER> [INTERVALO] [LIMITE_INF] [LIMITE_SUP]
-
-    Args:
-        update (Update): Objeto de actualización de Telegram recibido por el bot.
-        context (ContextTypes.DEFAULT_TYPE): Contexto de ejecución del bot.
-    """
     if update.message is None or update.effective_user is None:
         return
 
@@ -163,13 +141,6 @@ async def seguir(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 async def favoritas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Muestra la lista de acciones que el usuario está siguiendo, incluyendo intervalos y límites configurados.
-
-    Args:
-        update (Update): Objeto de actualización de Telegram.
-        context (ContextTypes.DEFAULT_TYPE): Contexto de ejecución del bot.
-    """
     if update.message is None or update.effective_user is None:
         return
 
@@ -190,13 +161,6 @@ async def favoritas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(mensaje.strip(), parse_mode="Markdown")
 
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Responde con el precio actual de una acción especificada por su ticker.
-
-    Args:
-        update (Update): Objeto de actualización de Telegram recibido por el bot.
-        context (ContextTypes.DEFAULT_TYPE): Contexto con argumentos y datos del usuario.
-    """
     if update.effective_user is None or update.message is None:
         return
 
@@ -226,16 +190,6 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def guardar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Guarda el precio actual de una acción en el historial del usuario.
-
-    El usuario debe indicar el símbolo bursátil como argumento. Se consulta el precio
-    mediante la API y se almacena en la base de datos si es válido.
-
-    Args:
-        update (Update): Objeto de actualización de Telegram.
-        context (ContextTypes.DEFAULT_TYPE): Contexto que incluye argumentos del comando.
-    """
     if update.effective_user is None or update.message is None:
         return
 
@@ -272,17 +226,6 @@ async def guardar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Muestra los últimos precios guardados para una acción seguida por el usuario.
-
-    El usuario debe indicar el símbolo bursátil como argumento. Se verifica la validez del ticker
-    usando la API y luego se recupera el historial desde la base de datos. Si no hay historial
-    o el ticker no es válido, se informa al usuario.
-
-    Args:
-        update (Update): Objeto de actualización de Telegram.
-        context (ContextTypes.DEFAULT_TYPE): Contexto con argumentos del comando.
-    """
     if update.effective_user is None or update.message is None:
         return
 
@@ -321,16 +264,6 @@ async def historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def borrar_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Elimina el historial de precios de un activo para el usuario actual.
-
-    El usuario debe proporcionar el símbolo bursátil como argumento. Si existe historial,
-    se borra y se informa. Si no, se notifica que no hay datos.
-
-    Args:
-        update (Update): Objeto de actualización recibido por el bot.
-        context (ContextTypes.DEFAULT_TYPE): Contexto que contiene los argumentos.
-    """
     if update.effective_user is None or update.message is None:
         return
 
@@ -350,16 +283,6 @@ async def borrar_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🗑️ Historial de precios para {ticker} eliminado.")
 
 async def dejar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Elimina un activo de la lista de seguimiento del usuario.
-
-    El usuario debe indicar el símbolo bursátil. Si no lo está siguiendo, se le informa.
-    Si lo está, se elimina de la base de datos y se notifica la acción.
-
-    Args:
-        update (Update): Objeto de actualización de Telegram.
-        context (ContextTypes.DEFAULT_TYPE): Contexto con los argumentos del comando.
-    """
     if update.effective_user is None or update.message is None:
         return
 
@@ -380,17 +303,6 @@ async def dejar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🗑️ Has dejado de seguir {ticker}.")
 
 async def grafico(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Genera y envía un gráfico con el historial de precios del activo indicado.
-
-    El usuario debe especificar un ticker. Si hay datos históricos suficientes,
-    se genera un gráfico y se envía como imagen. En caso contrario, se notifica
-    que no hay historial disponible.
-
-    Args:
-        update (Update): Objeto de actualización de Telegram.
-        context (ContextTypes.DEFAULT_TYPE): Contexto que incluye los argumentos del comando.
-    """
     if update.effective_user is None or update.message is None:
         return
 
