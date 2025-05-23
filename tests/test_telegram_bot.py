@@ -593,3 +593,86 @@ async def test_grafico_valido(monkeypatch):
     args, kwargs = update.message.reply_photo.call_args
     assert kwargs["caption"] == "📈 Historial de precios de AAPL"
 
+# -------------------------------
+# /exportar_historial
+# -------------------------------
+
+@pytest.mark.asyncio
+async def test_exportar_historial_sin_datos(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.message.reply_document = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_historial_usuario", lambda chat_id: [])
+
+    from bot.telegram_bot import exportar_historial
+    await exportar_historial(update, context)
+    update.message.reply_text.assert_called_once_with("No tienes historial de precios aún.")
+    update.message.reply_document.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_exportar_historial_ok(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.message.reply_document = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+
+    # Simula historial para el usuario
+    historial = [
+        {"Símbolo": "AAPL", "Precio": 150.0, "Fecha": "2024-05-23 12:00"},
+        {"Símbolo": "TSLA", "Precio": 750.0, "Fecha": "2024-05-23 13:00"}
+    ]
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_historial_usuario", lambda chat_id: historial)
+
+    from bot.telegram_bot import exportar_historial
+    await exportar_historial(update, context)
+    update.message.reply_document.assert_called_once()
+    args, kwargs = update.message.reply_document.call_args
+    assert kwargs["filename"] == "historial.csv"
+    assert kwargs["caption"] == "Aquí tienes tu historial de precios en formato CSV."
+
+# -------------------------------
+# /exportar_favoritas
+# -------------------------------
+
+@pytest.mark.asyncio
+async def test_exportar_favoritas_sin_datos(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.message.reply_document = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_favoritas_usuario", lambda chat_id: [])
+
+    from bot.telegram_bot import exportar_favoritas
+    await exportar_favoritas(update, context)
+    update.message.reply_text.assert_called_once_with("No estás siguiendo ninguna acción aún.")
+    update.message.reply_document.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_exportar_favoritas_ok(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.message.reply_document = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+
+    favoritas = [
+        {"Símbolo": "AAPL", "Nombre": "Apple Inc.", "Intervalo (min)": 15, "Límite Inferior": 100, "Límite Superior": 200}
+    ]
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_favoritas_usuario", lambda chat_id: favoritas)
+
+    from bot.telegram_bot import exportar_favoritas
+    await exportar_favoritas(update, context)
+    update.message.reply_document.assert_called_once()
+    args, kwargs = update.message.reply_document.call_args
+    assert kwargs["filename"] == "favoritas.csv"
+    assert kwargs["caption"] == "Aquí tienes tu lista de acciones favoritas en formato CSV."

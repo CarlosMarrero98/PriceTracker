@@ -1,20 +1,22 @@
 def get_commands_text() -> str:
     return (
-        "📋 *Comandos disponibles:*\n\n"
+        "📋 *Comandos disponibles*\n\n"
+        "*General:*\n"
         "/start — Inicia el bot y registra tu usuario\n"
         "/comandos — Muestra esta lista de comandos\n"
-        "/ayuda — Explicación rápida de cómo funciona el bot\n"
-        "/seguir <TICKER> [MIN] [LIM_INF] [LIM_SUP] — Empieza a seguir una acción y recibe alertas\n"
-        "/favoritas — Lista de acciones que estás siguiendo\n"
+        "/ayuda — Explicación rápida de cómo funciona el bot\n\n"
+        "*Seguimiento de acciones:*\n"
+        "/seguir <TICKER> [MIN] [LIM_INF] [LIM_SUP] — Empieza a seguir una acción y recibir alertas\n"
+        "/favoritas — Muestra la lista de acciones que estás siguiendo\n"
         "/price <TICKER> — Consulta el precio actual de una acción\n"
         "/guardar <TICKER> — Guarda el precio actual de una acción en tu historial\n"
-        "/historial <TICKER> — Ver tu historial de precios guardados\n"
+        "/historial <TICKER> — Muestra el historial de precios guardados\n"
         "/borrar_historial <TICKER> — Borra el historial de una acción\n"
         "/dejar <TICKER> — Deja de seguir una acción\n"
-        "/grafico <TICKER> — Recibe el gráfico histórico de precios\n"
-        "/exportar_favoritas — Exporta la lista de acciones que sigues y sus límites (no contiene precios)\n"
-        "/exportar_historial — Exporta el historial completo de precios guardados (todas las acciones y fechas)\n"
-        
+        "/grafico <TICKER> — Recibe el gráfico histórico de precios\n\n"
+        "*Exportar datos:*\n"
+        "/exportar_favoritas — Exporta tu lista de acciones seguidas y sus límites (NO contiene precios)\n"
+        "/exportar_historial — Exporta el historial completo de precios guardados (todas las acciones y fechas)\n\n"
     )
 
 

@@ -110,7 +110,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message:
-        await update.message.reply_text(get_commands_text())
+        await update.message.reply_text(get_commands_text(), parse_mode="Markdown")
 
 async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message:

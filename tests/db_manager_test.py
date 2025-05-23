@@ -309,3 +309,34 @@ def test_obtener_usuarios(db_temp):
     assert "111" in usuarios
     assert "222" in usuarios
     assert len(usuarios) == 2
+
+def test_obtener_favoritas_usuario_devuelve_lista_correcta(db_temp):
+    chat_id = "123456"
+    productos = [
+        ("AAPL", "Apple Inc.", 15, 100.0, 200.0),
+        ("TSLA", "Tesla Inc.", 30, 150.0, 300.0),
+    ]
+
+    for symbol, nombre, intervalo, limite_inf, limite_sup in productos:
+        db_temp.agregar_producto(
+            chat_id, symbol, nombre, intervalo, limite_inf, limite_sup
+        )
+
+    favoritas = db_temp.obtener_favoritas_usuario(chat_id)
+
+    # Debe ser una lista de diccionarios con las claves correctas
+    assert isinstance(favoritas, list)
+    assert all(isinstance(item, dict) for item in favoritas)
+    assert set(favoritas[0].keys()) == {
+        "Símbolo", "Nombre", "Intervalo (min)", "Límite Inferior", "Límite Superior"
+    }
+
+    # Comprobamos que los valores coinciden con los insertados
+    symbols_insertados = {p[0] for p in productos}
+    symbols_favoritas = {item["Símbolo"] for item in favoritas}
+    assert symbols_insertados == symbols_favoritas
+
+def test_obtener_favoritas_usuario_vacia_si_no_hay_productos(db_temp):
+    chat_id = "999999"
+    favoritas = db_temp.obtener_favoritas_usuario(chat_id)
+    assert favoritas == []
