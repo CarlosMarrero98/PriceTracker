@@ -12,7 +12,8 @@ from bot.telegram_bot import (
     grafico,
     recibir_api_key,
     PEDIR_API_KEY,
-    exportar_historial,  #
+    exportar_historial,    
+    exportar_favoritas,   
 )
 from dotenv import load_dotenv
 from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
@@ -37,7 +38,7 @@ def prueba_telegram_bot():
     )
     app.add_handler(conv_handler)
 
-    # El resto de tus handlers
+    # Comandos del bot
     app.add_handler(CommandHandler("comandos", comandos))
     app.add_handler(CommandHandler("ayuda", ayuda))
     app.add_handler(CommandHandler("seguir", seguir))
@@ -48,7 +49,8 @@ def prueba_telegram_bot():
     app.add_handler(CommandHandler("borrar_historial", borrar_historial))
     app.add_handler(CommandHandler("dejar", dejar))
     app.add_handler(CommandHandler("grafico", grafico))
-    app.add_handler(CommandHandler("exportar_historial", exportar_historial))  # <--- Añadido
+    app.add_handler(CommandHandler("exportar_historial", exportar_historial))
+    app.add_handler(CommandHandler("exportar_favoritas", exportar_favoritas))  
 
     print("✅ Bot iniciado.")
     app.run_polling()

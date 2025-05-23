@@ -12,7 +12,8 @@ def get_commands_text() -> str:
         "/borrar_historial <TICKER> — Borra el historial de una acción\n"
         "/dejar <TICKER> — Deja de seguir una acción\n"
         "/grafico <TICKER> — Recibe el gráfico histórico de precios\n"
-        "/exportar_historial — Exporta tu historial de precios en CSV\n"
+        "/exportar_favoritas — Exporta la lista de acciones que sigues y sus límites (no contiene precios)\n"
+        "/exportar_historial — Exporta el historial completo de precios guardados (todas las acciones y fechas)\n"
         
     )
 

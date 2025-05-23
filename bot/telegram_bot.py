@@ -42,6 +42,33 @@ async def exportar_historial(update, context):
         filename="historial.csv",
         caption="Aquí tienes tu historial de precios en formato CSV."
     )
+# ==================== EXPORTAR FAVORITAS CSV ====================
+
+async def exportar_favoritas(update, context):
+    """
+    Exporta la lista de acciones favoritas (seguidas) del usuario a un archivo CSV y lo envía por Telegram.
+    """
+    if update.effective_user is None or update.message is None:
+        return
+
+    chat_id = str(update.effective_user.id)
+    favoritas = db.obtener_favoritas_usuario(chat_id)
+
+    if not favoritas:
+        await update.message.reply_text("No estás siguiendo ninguna acción aún.")
+        return
+
+    # DataFrame para pandas
+    df = pd.DataFrame(favoritas)
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
+    buffer.seek(0)
+
+    await update.message.reply_document(
+        document=InputFile(io.BytesIO(buffer.getvalue().encode()), filename="favoritas.csv"),
+        filename="favoritas.csv",
+        caption="Aquí tienes tu lista de acciones favoritas en formato CSV."
+    )
 
 # ============ RESTO DE HANDLERS ============
 
@@ -83,7 +110,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message:
-        await update.message.reply_text(get_commands_text(), parse_mode="Markdown")
+        await update.message.reply_text(get_commands_text())
 
 async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message:
