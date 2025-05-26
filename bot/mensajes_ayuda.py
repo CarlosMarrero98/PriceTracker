@@ -15,6 +15,7 @@ def get_commands_text() -> str:
         "/exportar_historial - Exportar todo tu historial\n"
         "/exportar_historial <TICKER> - Exportar historial de una acción\n"
         "/exportar_favoritas - Exportar tus favoritas\n"
+        "/media <TICKER> - Media del historial de precios\n"
     )
 
 
