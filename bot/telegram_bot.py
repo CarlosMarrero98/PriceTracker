@@ -10,6 +10,8 @@ from bot.mensajes_ayuda import get_commands_text, get_help_text
 from bot.get_price import fetch_stock_price
 from bot.grafico import generar_grafico
 from bot.db_instance import db
+from sklearn.linear_model import LinearRegression 
+import numpy as np 
 import pandas as pd
 import io
 
@@ -445,4 +447,47 @@ async def grafico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_photo(
         photo=InputFile(buffer), caption=f"📈 Historial de precios de {ticker}"
     )
+
+# ==================== MEDIA DEL HISTORIAL ====================
+
+async def media_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Muestra el precio mínimo, máximo y medio de un ticker basado en todo el historial guardado.
+
+    Sintaxis: /media <TICKER>
+    Ejemplo: /media TSLA
+    """
+    if update.effective_user is None or update.message is None:
+        return
+
+    if len(context.args) != 1:
+        await update.message.reply_text("Uso correcto: /media <TICKER>\nEjemplo: /media AAPL")
+        return
+
+    ticker = context.args[0].strip().upper()
+    chat_id = str(update.effective_user.id)
+
+    try:
+        minimo, maximo, media = db.obtener_estadisticas(chat_id, ticker)
+
+        if minimo is None or maximo is None or media is None:
+            await update.message.reply_text(f"No tienes historial guardado para {ticker}.")
+            return
+
+        minimo = round(minimo, 2)
+        maximo = round(maximo, 2)
+        media = round(media, 2)
+
+        print(f"Estadísticas de {ticker}: min={minimo}, max={maximo}, media={media}")
+
+        await update.message.reply_text(
+            f"📊 Estadísticas de {ticker} en tu historial:\n\n"
+            f"🔻 Mínimo: {minimo} €\n"
+            f"🔺 Máximo: {maximo} €\n"
+            f"📈 Media: {media} €"
+        )
+
+    except Exception as e:
+        print(f"Error al obtener estadísticas: {e}")
+        await update.message.reply_text("Ocurrió un error al calcular las estadísticas. Inténtalo más tarde.")
 

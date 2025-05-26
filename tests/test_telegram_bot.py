@@ -1,6 +1,6 @@
 import pytest
 from io import BytesIO
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from bot.telegram_bot import (
     start,
     comandos,
@@ -13,6 +13,7 @@ from bot.telegram_bot import (
     borrar_historial,
     dejar,
     grafico,
+    media_historial
 )
 from telegram import Update, User, Message
 
@@ -685,3 +686,50 @@ async def test_exportar_favoritas_ok(monkeypatch):
     args, kwargs = update.message.reply_document.call_args
     assert kwargs["filename"] == "favoritas.csv"
     assert kwargs["caption"] == "Aquí tienes tu lista de acciones favoritas en formato CSV."
+
+
+@pytest.mark.asyncio
+@patch("bot.telegram_bot.db.obtener_estadisticas")
+async def test_media_historial_ok(mock_obtener_estadisticas):
+    # Simula datos devueltos por la función de la base de datos
+    mock_obtener_estadisticas.return_value = (100.0, 200.0, 150.0)
+
+    # Simula objetos Update y Context
+    mock_user = User(id=123, is_bot=False, first_name="Test")
+    mock_message = MagicMock(spec=Message)
+    mock_message.reply_text = AsyncMock()
+    mock_update = MagicMock(spec=Update)
+    mock_update.effective_user = mock_user
+    mock_update.message = mock_message
+
+    mock_context = MagicMock()
+    mock_context.args = ["TSLA"]
+
+    # Ejecuta el handler
+    await media_historial(mock_update, mock_context)
+
+    # Verifica que se llamó a reply_text con la media, min y max
+    mock_message.reply_text.assert_awaited_once()
+    text = mock_message.reply_text.call_args[0][0]
+    assert "Media del precio de TSLA" in text
+    assert "Mínimo: 100.0" in text
+    assert "Máximo: 200.0" in text
+    assert "Media: 150.0" in text
+
+@pytest.mark.asyncio
+async def test_media_historial_sin_args():
+    # Caso sin argumentos
+    mock_user = User(id=123, is_bot=False, first_name="Test")
+    mock_message = MagicMock(spec=Message)
+    mock_message.reply_text = AsyncMock()
+    mock_update = MagicMock(spec=Update)
+    mock_update.effective_user = mock_user
+    mock_update.message = mock_message
+
+    mock_context = MagicMock()
+    mock_context.args = []  # no hay argumentos
+
+    await media_historial(mock_update, mock_context)
+
+    mock_message.reply_text.assert_awaited_once()
+    assert "Uso correcto" in mock_message.reply_text.call_args[0][0]
