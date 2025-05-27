@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  pricetracker:
+    build: .
+    command: python main.py
+    env_file:
+      - .env
+    volumes:
+      - basedatos_data:/app
+
+
+    
+
+volumes:
+  basedatos_data:
