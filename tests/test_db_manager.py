@@ -1,8 +1,8 @@
-import os
 import sqlite3
 import pytest
 import time
 from bot.db_manager import DatabaseManager
+
 
 @pytest.fixture
 def db_temp():
@@ -14,6 +14,7 @@ def db_temp():
     yield dbm
     conn.close()
 
+
 def test_tablas_creadas(db_temp):
     tablas_esperadas = {"usuarios", "productos_seguidos", "historial_precios"}
 
@@ -23,6 +24,7 @@ def test_tablas_creadas(db_temp):
         tablas_creadas = {fila[0] for fila in cursor.fetchall()}
 
     assert tablas_esperadas.issubset(tablas_creadas)
+
 
 def test_agregar_usuario_inserta_correctamente(db_temp):
     chat_id = "123456"
@@ -41,6 +43,7 @@ def test_agregar_usuario_inserta_correctamente(db_temp):
     assert fila[0] == chat_id
     assert fila[1] == username
 
+
 def test_agregar_usuario_no_duplica_si_existe(db_temp):
     chat_id = "123456"
     username = "usuario_test"
@@ -54,6 +57,7 @@ def test_agregar_usuario_no_duplica_si_existe(db_temp):
         count = cursor.fetchone()[0]
 
     assert count == 1
+
 
 def test_agregar_producto_inserta_correctamente(db_temp):
     chat_id = "123456"
@@ -81,6 +85,7 @@ def test_agregar_producto_inserta_correctamente(db_temp):
 
     assert fila == (chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup)
 
+
 def test_agregar_producto_reemplaza_si_existe(db_temp):
     chat_id = "123456"
     symbol = "AAPL"
@@ -106,6 +111,7 @@ def test_agregar_producto_reemplaza_si_existe(db_temp):
         fila = cursor.fetchone()
 
     assert fila == ("Apple Inc. Actualizado", 60, 120.0, 180.0)
+
 
 def test_obtener_productos_devuelve_lista_correcta(db_temp):
     chat_id = "123456"
@@ -133,10 +139,12 @@ def test_obtener_productos_devuelve_lista_correcta(db_temp):
 
     assert resultado_obtenido == resultado_esperado
 
+
 def test_obtener_productos_lista_vacia_si_no_hay_productos(db_temp):
     chat_id = "999999"
     resultado = db_temp.obtener_productos(chat_id)
     assert resultado == []
+
 
 def test_guardar_precio_inserta_entrada_correcta(db_temp):
     chat_id = "123456"
@@ -162,6 +170,7 @@ def test_guardar_precio_inserta_entrada_correcta(db_temp):
     assert fila[1] == symbol
     assert fila[2] == precio
 
+
 def test_guardar_precio_permite_multiples_registros(db_temp):
     chat_id = "123456"
     symbol = "AAPL"
@@ -183,6 +192,7 @@ def test_guardar_precio_permite_multiples_registros(db_temp):
 
     assert resultados == precios
 
+
 def test_obtener_historial_devuelve_los_ultimos_10(db_temp):
     chat_id = "123456"
     symbol = "AAPL"
@@ -202,6 +212,7 @@ def test_obtener_historial_devuelve_los_ultimos_10(db_temp):
     precios_obtenidos = [fila[0] for fila in historial]
     assert precios_obtenidos == precios[-1:-11:-1]  # últimos 10 en orden inverso
 
+
 def test_obtener_historial_lista_vacia_si_no_hay_registros(db_temp):
     chat_id = "999999"
     symbol = "MSFT"
@@ -209,6 +220,7 @@ def test_obtener_historial_lista_vacia_si_no_hay_registros(db_temp):
     historial = db_temp.obtener_historial(chat_id, symbol)
 
     assert historial == []
+
 
 def test_obtener_estadisticas_calcula_min_max_avg(db_temp):
     chat_id = "123456"
@@ -224,6 +236,7 @@ def test_obtener_estadisticas_calcula_min_max_avg(db_temp):
     assert maximo == max(precios)
     assert round(media, 2) == round(sum(precios) / len(precios), 2)
 
+
 def test_obtener_estadisticas_sin_datos_retorna_none(db_temp):
     chat_id = "999999"
     symbol = "GOOG"
@@ -231,6 +244,7 @@ def test_obtener_estadisticas_sin_datos_retorna_none(db_temp):
     resultado = db_temp.obtener_estadisticas(chat_id, symbol)
 
     assert resultado == (None, None, None)
+
 
 def test_obtener_limites_devuelve_valores_correctos(db_temp):
     chat_id = "123456"
@@ -244,6 +258,7 @@ def test_obtener_limites_devuelve_valores_correctos(db_temp):
 
     assert limites == (limite_inf, limite_sup)
 
+
 def test_obtener_limites_retorna_none_si_no_existe(db_temp):
     chat_id = "999999"
     symbol = "TSLA"
@@ -251,6 +266,7 @@ def test_obtener_limites_retorna_none_si_no_existe(db_temp):
     limites = db_temp.obtener_limites(chat_id, symbol)
 
     assert limites is None
+
 
 def test_eliminar_producto(db_temp):
     chat_id = "123"
@@ -270,6 +286,7 @@ def test_eliminar_producto(db_temp):
     # Comprobamos que fue eliminado
     productos = db_temp.obtener_productos(chat_id)
     assert productos == []
+
 
 def test_borrar_historial(db_temp):
     chat_id = "123"
@@ -295,6 +312,7 @@ def test_borrar_historial(db_temp):
     historial = db_temp.obtener_historial(chat_id, symbol)
     assert historial == []
 
+
 def test_obtener_usuarios(db_temp):
     # No debe haber usuarios al principio
     assert db_temp.obtener_usuarios() == []
@@ -309,6 +327,7 @@ def test_obtener_usuarios(db_temp):
     assert "111" in usuarios
     assert "222" in usuarios
     assert len(usuarios) == 2
+
 
 def test_obtener_favoritas_usuario_devuelve_lista_correcta(db_temp):
     chat_id = "123456"
@@ -328,7 +347,11 @@ def test_obtener_favoritas_usuario_devuelve_lista_correcta(db_temp):
     assert isinstance(favoritas, list)
     assert all(isinstance(item, dict) for item in favoritas)
     assert set(favoritas[0].keys()) == {
-        "Símbolo", "Nombre", "Intervalo (min)", "Límite Inferior", "Límite Superior"
+        "Símbolo",
+        "Nombre",
+        "Intervalo (min)",
+        "Límite Inferior",
+        "Límite Superior",
     }
 
     # Comprobamos que los valores coinciden con los insertados
@@ -336,7 +359,49 @@ def test_obtener_favoritas_usuario_devuelve_lista_correcta(db_temp):
     symbols_favoritas = {item["Símbolo"] for item in favoritas}
     assert symbols_insertados == symbols_favoritas
 
+
 def test_obtener_favoritas_usuario_vacia_si_no_hay_productos(db_temp):
     chat_id = "999999"
     favoritas = db_temp.obtener_favoritas_usuario(chat_id)
     assert favoritas == []
+
+
+def test_guardar_y_obtener_api_key(db_temp):
+    chat_id = "123456"
+    username = "usuario_test"
+    api_key = "clave_de_prueba_ABC123"
+
+    # Primero agregamos el usuario
+    db_temp.agregar_usuario(chat_id, username)
+
+    # Guardamos la API key
+    db_temp.guardar_api_key(chat_id, api_key)
+
+    # Recuperamos la API key y la comparamos
+    resultado = db_temp.obtener_api_key(chat_id)
+
+    assert resultado == api_key
+
+
+def test_obtener_api_key_retorna_none_si_no_existe(db_temp):
+    chat_id = "no_existente"
+
+    resultado = db_temp.obtener_api_key(chat_id)
+
+    assert resultado is None
+
+
+def test_obtener_historial_usuario_filtrado_por_ticker(db_temp):
+    chat_id = "123456"
+    ticker = "AAPL"
+
+    # Insertamos datos para varios tickers
+    db_temp.guardar_precio(chat_id, "AAPL", 150.0)
+    db_temp.guardar_precio(chat_id, "GOOG", 180.0)
+
+    historial_aapl = db_temp.obtener_historial_usuario(chat_id, ticker)
+
+    assert isinstance(historial_aapl, list)
+    assert all(item["Símbolo"] == "AAPL" for item in historial_aapl)
+    assert all("Precio" in item and "Fecha" in item for item in historial_aapl)
+    assert len(historial_aapl) == 1  # Solo hay un AAPL

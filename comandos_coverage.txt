@@ -1,0 +1,8 @@
+-- Muestra en la terminal todos los test con covertura
+poetry run pytest --cov=bot
+
+-- Genera un HTML para ver la cov de los test 
+poetry run pytest --cov=bot --cov-report=html
+
+-- Muestra en la terminal o genera el HTML de los test concretos con covertura
+poetry run pytest "db_manager_test.py" --cov="bot.db_manager" --cov-report="term/html"

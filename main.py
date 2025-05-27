@@ -17,14 +17,37 @@ from bot.telegram_bot import (
 )
 from dotenv import load_dotenv
 from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
-from bot.seguimiento import lanzar_seguimiento
+from bot.seguimiento import comprobar_alertas_periodicamente
+import asyncio
 import os
 
 load_dotenv()
 
 def prueba_telegram_bot():
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    app = Application.builder().token(TOKEN).post_init(lanzar_seguimiento).build()
+
+    # Se ejecuta justo después de iniciar el bot
+    async def post_init(app):
+        global seguimiento_task
+        seguimiento_task = asyncio.create_task(comprobar_alertas_periodicamente(app))
+
+    # Se ejecuta justo antes de cerrar el bot
+    async def post_shutdown(app):
+        global seguimiento_task
+        if seguimiento_task:
+            seguimiento_task.cancel()
+            try:
+                await seguimiento_task
+            except asyncio.CancelledError:
+                print("🛑 Tarea de seguimiento detenida correctamente.")
+
+    app = (
+        Application.builder()
+        .token(TOKEN)
+        .post_init(post_init)
+        .post_shutdown(post_shutdown)
+        .build()
+    )
 
     # Handler conversacional para el flujo de la API Key
     conv_handler = ConversationHandler(
@@ -36,6 +59,7 @@ def prueba_telegram_bot():
         },
         fallbacks=[],
     )
+
     app.add_handler(conv_handler)
 
     # Comandos del bot
