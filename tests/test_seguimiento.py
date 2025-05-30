@@ -100,6 +100,7 @@ async def test_lanzar_seguimiento_y_comprobar_alertas(monkeypatch):
         await seguimiento.lanzar_seguimiento(app)
         await asyncio.sleep(0.1)
 
+
 @pytest.mark.asyncio
 async def test_comprobar_alertas_error_general(monkeypatch):
     # Simula un error al obtener usuarios
@@ -115,6 +116,7 @@ async def test_comprobar_alertas_error_general(monkeypatch):
 
     with pytest.raises(asyncio.CancelledError):
         await seguimiento.comprobar_alertas_periodicamente(app)
+
 
 @pytest.mark.asyncio
 async def test_procesar_usuario_error_general(monkeypatch):

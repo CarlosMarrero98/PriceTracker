@@ -46,6 +46,7 @@ async def test_start_registers_user_and_sends_welcome(monkeypatch):
     mock_message.reply_text.assert_called_once()
     mock_agregar_usuario.assert_called_once_with("123", "Saso")
 
+
 @pytest.mark.asyncio
 async def test_start_sin_user():
     update = MagicMock(spec=Update)
@@ -57,6 +58,7 @@ async def test_start_sin_user():
 
     result = await start(update, context)
     assert result is None
+
 
 @pytest.mark.asyncio
 async def test_start_sin_api_key(monkeypatch):
@@ -76,6 +78,7 @@ async def test_start_sin_api_key(monkeypatch):
     result = await start(update, context)
 
     assert result == PEDIR_API_KEY
+
 
 @pytest.mark.asyncio
 async def test_start_con_api_key(monkeypatch):
@@ -172,6 +175,7 @@ async def test_seguir_error_api(monkeypatch):
     await seguir(update, context)
     update.message.reply_text.assert_called_with("No se pudo seguir 'AAPL': No data")
 
+
 @pytest.mark.asyncio
 async def test_seguir_argumentos_invalidos(monkeypatch):
     update = MagicMock(spec=Update)
@@ -183,6 +187,7 @@ async def test_seguir_argumentos_invalidos(monkeypatch):
 
     await seguir(update, context)
     update.message.reply_text.assert_called_once_with("Intervalo y límites deben ser válidos.")
+
 
 @pytest.mark.asyncio
 async def test_seguir_valido(monkeypatch):
@@ -205,6 +210,7 @@ async def test_seguir_valido(monkeypatch):
     update.message.reply_text.assert_called()
     mock_agregar.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_seguir_completo(monkeypatch):
     update = MagicMock(spec=Update)
@@ -222,6 +228,7 @@ async def test_seguir_completo(monkeypatch):
 
     await seguir(update, context)
     update.message.reply_text.assert_called_once()
+
 
 # -------------------------------
 # /favoritas
@@ -294,6 +301,7 @@ async def test_price_sin_api_key(monkeypatch):
         "Puedes obtener una gratis en https://twelvedata.com/. Envíamela ahora:"
     )
 
+
 @pytest.mark.asyncio
 async def test_price_con_error(monkeypatch):
     update = MagicMock(spec=Update)
@@ -310,6 +318,7 @@ async def test_price_con_error(monkeypatch):
 
     await price(update, context)
     update.message.reply_text.assert_called_once_with("No se pudo obtener el precio de 'AAPL': No válido")
+
 
 @pytest.mark.asyncio
 async def test_price_valido(monkeypatch):
@@ -522,6 +531,7 @@ async def test_guardar_correcto(monkeypatch):
     update.message.reply_text.assert_called_once_with(expected, parse_mode="Markdown")
     mock_guardar.assert_called_once_with("1", "AAPL", 154.32)
 
+
 @pytest.mark.asyncio
 async def test_guardar_precio_invalido(monkeypatch):
     update = MagicMock(spec=Update)
@@ -538,6 +548,7 @@ async def test_guardar_precio_invalido(monkeypatch):
 
     await guardar(update, context)
     update.message.reply_text.assert_called_once_with("Error: el precio recibido no es válido.")
+
 
 # -------------------------------
 # /borrar_historial
@@ -739,6 +750,7 @@ async def test_exportar_historial_con_ticker(monkeypatch):
     args, kwargs = update.message.reply_document.call_args
     assert kwargs["filename"] == "historial_AAPL.csv"
 
+
 @pytest.mark.asyncio
 async def test_exportar_historial_sin_datos(monkeypatch):
     update = MagicMock(spec=Update)
@@ -755,6 +767,7 @@ async def test_exportar_historial_sin_datos(monkeypatch):
 
     await exportar_historial(update, context)
     update.message.reply_text.assert_called_once_with("No tienes historial de precios aún.")
+
 
 @pytest.mark.asyncio
 async def test_exportar_historial_sin_datos_con_ticker(monkeypatch):
@@ -926,4 +939,5 @@ async def test_recibir_api_key_valida(monkeypatch):
     )
 
     from telegram.ext import ConversationHandler
+
     assert result == ConversationHandler.END
