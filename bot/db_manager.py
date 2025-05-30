@@ -252,7 +252,8 @@ class DatabaseManager:
                 (chat_id, symbol),
             )
             resultado = cursor.fetchone()
-            assert resultado is not None, f"No se encontraron límites para {symbol} del usuario {chat_id}"
+            if resultado is None:
+                return None
             return cast(tuple[float, float], resultado)
 
     # ================== GESTIÓN DEL HISTORIAL DE PRECIOS ==================

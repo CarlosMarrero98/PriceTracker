@@ -16,6 +16,9 @@ from bot.telegram_bot import (
     price,
     seguir,
     start,
+    pedir_api_key,
+    recibir_api_key,
+    PEDIR_API_KEY,
 )
 
 # -------------------------------
@@ -42,6 +45,59 @@ async def test_start_registers_user_and_sends_welcome(monkeypatch):
 
     mock_message.reply_text.assert_called_once()
     mock_agregar_usuario.assert_called_once_with("123", "Saso")
+
+@pytest.mark.asyncio
+async def test_start_sin_user():
+    update = MagicMock(spec=Update)
+    update.effective_user = None
+    update.message = MagicMock()
+    context = MagicMock()
+
+    from bot.telegram_bot import start
+
+    result = await start(update, context)
+    assert result is None
+
+@pytest.mark.asyncio
+async def test_start_sin_api_key(monkeypatch):
+    update = MagicMock(spec=Update)
+    user = MagicMock(id=1, username=None, first_name="Carlos")
+    update.effective_user = user
+    message = MagicMock()
+    update.message = message
+    context = MagicMock()
+
+    monkeypatch.setattr("bot.telegram_bot.db.agregar_usuario", lambda *a: None)
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_api_key", lambda *a: None)
+    monkeypatch.setattr("bot.telegram_bot.pedir_api_key", AsyncMock(return_value=PEDIR_API_KEY))
+
+    from bot.telegram_bot import start
+
+    result = await start(update, context)
+
+    assert result == PEDIR_API_KEY
+
+@pytest.mark.asyncio
+async def test_start_con_api_key(monkeypatch):
+    update = MagicMock(spec=Update)
+    user = MagicMock(id=123, username="usuario_test", first_name="Carlos")
+    update.effective_user = user
+
+    message = MagicMock()
+    message.reply_text = AsyncMock()
+    update.message = message
+
+    context = MagicMock()
+
+    monkeypatch.setattr("bot.telegram_bot.db.agregar_usuario", lambda chat_id, username: None)
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_api_key", lambda chat_id: "123456")
+
+    from bot.telegram_bot import start
+
+    result = await start(update, context)
+
+    message.reply_text.assert_called_once()
+    assert result is None
 
 
 # -------------------------------
@@ -116,6 +172,17 @@ async def test_seguir_error_api(monkeypatch):
     await seguir(update, context)
     update.message.reply_text.assert_called_with("No se pudo seguir 'AAPL': No data")
 
+@pytest.mark.asyncio
+async def test_seguir_argumentos_invalidos(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL", "60", "limite_mal", "200"]
+
+    await seguir(update, context)
+    update.message.reply_text.assert_called_once_with("Intervalo y límites deben ser válidos.")
 
 @pytest.mark.asyncio
 async def test_seguir_valido(monkeypatch):
@@ -138,6 +205,23 @@ async def test_seguir_valido(monkeypatch):
     update.message.reply_text.assert_called()
     mock_agregar.assert_called_once()
 
+@pytest.mark.asyncio
+async def test_seguir_completo(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL", "30", "100", "200"]
+
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_api_key", lambda *_: "clave")
+    monkeypatch.setattr("bot.telegram_bot.fetch_stock_price", lambda *_: {"error": None, "nombre": "Apple"})
+    monkeypatch.setattr("bot.telegram_bot.db.agregar_producto", lambda *_: None)
+
+    from bot.telegram_bot import seguir
+
+    await seguir(update, context)
+    update.message.reply_text.assert_called_once()
 
 # -------------------------------
 # /favoritas
@@ -210,6 +294,22 @@ async def test_price_sin_api_key(monkeypatch):
         "Puedes obtener una gratis en https://twelvedata.com/. Envíamela ahora:"
     )
 
+@pytest.mark.asyncio
+async def test_price_con_error(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_api_key", lambda *_: "clave")
+    monkeypatch.setattr("bot.telegram_bot.fetch_stock_price", lambda *_: {"error": "No válido"})
+
+    from bot.telegram_bot import price
+
+    await price(update, context)
+    update.message.reply_text.assert_called_once_with("No se pudo obtener el precio de 'AAPL': No válido")
 
 @pytest.mark.asyncio
 async def test_price_valido(monkeypatch):
@@ -422,6 +522,22 @@ async def test_guardar_correcto(monkeypatch):
     update.message.reply_text.assert_called_once_with(expected, parse_mode="Markdown")
     mock_guardar.assert_called_once_with("1", "AAPL", 154.32)
 
+@pytest.mark.asyncio
+async def test_guardar_precio_invalido(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_api_key", lambda *_: "clave")
+    monkeypatch.setattr("bot.telegram_bot.fetch_stock_price", lambda *_: {"error": None, "precio": "abc", "nombre": "Apple"})
+
+    from bot.telegram_bot import guardar
+
+    await guardar(update, context)
+    update.message.reply_text.assert_called_once_with("Error: el precio recibido no es válido.")
 
 # -------------------------------
 # /borrar_historial
@@ -600,6 +716,30 @@ async def test_grafico_valido(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_exportar_historial_con_ticker(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.message.reply_document = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr(
+        "bot.telegram_bot.db.obtener_historial_usuario",
+        lambda chat_id, ticker=None: [
+            {"Símbolo": "AAPL", "Precio": 150.0, "Fecha": "2024-05-23 12:00"},
+        ],
+    )
+
+    from bot.telegram_bot import exportar_historial
+
+    await exportar_historial(update, context)
+    update.message.reply_document.assert_called_once()
+    args, kwargs = update.message.reply_document.call_args
+    assert kwargs["filename"] == "historial_AAPL.csv"
+
+@pytest.mark.asyncio
 async def test_exportar_historial_sin_datos(monkeypatch):
     update = MagicMock(spec=Update)
     update.message = MagicMock()
@@ -615,6 +755,22 @@ async def test_exportar_historial_sin_datos(monkeypatch):
 
     await exportar_historial(update, context)
     update.message.reply_text.assert_called_once_with("No tienes historial de precios aún.")
+
+@pytest.mark.asyncio
+async def test_exportar_historial_sin_datos_con_ticker(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    monkeypatch.setattr("bot.telegram_bot.db.obtener_historial_usuario", lambda *_: [])
+
+    from bot.telegram_bot import exportar_historial
+
+    await exportar_historial(update, context)
+    update.message.reply_text.assert_called_once_with("No tienes historial guardado para AAPL.")
 
 
 @pytest.mark.asyncio
@@ -696,3 +852,78 @@ async def test_exportar_favoritas_ok(monkeypatch):
     args, kwargs = update.message.reply_document.call_args
     assert kwargs["filename"] == "favoritas.csv"
     assert kwargs["caption"] == "Aquí tienes tu lista de acciones favoritas en formato CSV."
+
+
+# -------------------------------
+# /pedir_api_key
+# -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_pedir_api_key_con_message():
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    context = MagicMock()
+
+    result = await pedir_api_key(update, context)
+
+    update.message.reply_text.assert_called_once_with(
+        "🔑 Antes de continuar, necesito tu API Key de TwelveData para poder consultar precios.\n"
+        "Puedes obtener una gratis en https://twelvedata.com/. Envíamela ahora:"
+    )
+    assert result == PEDIR_API_KEY
+
+
+@pytest.mark.asyncio
+async def test_pedir_api_key_sin_message():
+    update = MagicMock(spec=Update)
+    update.message = None
+    context = MagicMock()
+
+    result = await pedir_api_key(update, context)
+
+    assert result is None
+
+
+# -------------------------------
+# /recibir_api_key
+# -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_recibir_api_key_sin_texto(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.text = None
+    update.effective_user = MagicMock(id=1)
+    update.message.reply_text = AsyncMock()
+    context = MagicMock()
+
+    result = await recibir_api_key(update, context)
+
+    update.message.reply_text.assert_called_once_with("❌ No he recibido ninguna API Key. Intenta de nuevo.")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_recibir_api_key_valida(monkeypatch):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.text = "CLAVE123"
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+
+    mock_guardar = MagicMock()
+    monkeypatch.setattr("bot.telegram_bot.db.guardar_api_key", mock_guardar)
+
+    result = await recibir_api_key(update, context)
+
+    mock_guardar.assert_called_once_with("1", "CLAVE123")
+    update.message.reply_text.assert_called_once_with(
+        "✅ ¡API Key guardada correctamente! Ahora puedes usar todos los comandos del bot."
+    )
+
+    from telegram.ext import ConversationHandler
+    assert result == ConversationHandler.END

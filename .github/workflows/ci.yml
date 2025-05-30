@@ -23,8 +23,9 @@ jobs:
     - name: Instalar dependencias
       run: poetry install
 
-    - name: Ejecutar tests con pytest
-      run: poetry run pytest
+    - name: Ejecutar tests con cobertura mínima
+      run: poetry run pytest --cov=bot --cov-report=term --cov-fail-under=90
+    
 
     - name: Verificar tipado con mypy
       run: poetry run mypy .
