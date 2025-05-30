@@ -31,6 +31,7 @@ types-requests = "^2.32.0.20250515"
 pytest-cov = "^6.1.1"
 pandas-stubs = "^2.2.3.250527"
 ruff = "^0.11.12"
+hypothesis = "^6.131.32"
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"

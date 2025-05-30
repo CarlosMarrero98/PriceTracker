@@ -3,8 +3,12 @@ import time
 
 import pytest
 
+from hypothesis import given, settings, HealthCheck
+from hypothesis.strategies import text, integers, floats, characters
+
 from bot.db_manager import DatabaseManager
 
+letras_numeros = characters(whitelist_categories=("Ll", "Lu", "Nd"))
 
 @pytest.fixture
 def db_temp():
@@ -27,14 +31,20 @@ def test_tablas_creadas(db_temp):
 
     assert tablas_esperadas.issubset(tablas_creadas)
 
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    chat_id=text(alphabet=letras_numeros, min_size=1, max_size=20),
+    username=text(alphabet=letras_numeros, min_size=1, max_size=30),
+)
+def test_agregar_usuario_inserta_correctamente(chat_id, username):
+    conn = sqlite3.connect(":memory:")
+    dbm = DatabaseManager(db_path=":memory:")
+    dbm._conectar = lambda: conn
+    dbm._crear_tablas()
 
-def test_agregar_usuario_inserta_correctamente(db_temp):
-    chat_id = "123456"
-    username = "usuario_test"
+    dbm.agregar_usuario(chat_id, username)
 
-    db_temp.agregar_usuario(chat_id, username)
-
-    with db_temp._conectar() as conn:
+    with conn:
         cursor = conn.cursor()
         cursor.execute("SELECT chat_id, username FROM usuarios WHERE chat_id = ?", (chat_id,))
         fila = cursor.fetchone()
@@ -59,30 +69,20 @@ def test_agregar_usuario_no_duplica_si_existe(db_temp):
     assert count == 1
 
 
-def test_agregar_producto_inserta_correctamente(db_temp):
+def test_agregar_usuario_inserta_correctamente(db_temp):
     chat_id = "123456"
-    symbol = "AAPL"
-    nombre_empresa = "Apple Inc."
-    intervalo = 30
-    limite_inf = 100.0
-    limite_sup = 200.0
+    username = "usuario_test"
 
-    db_temp.agregar_producto(chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup)
+    db_temp.agregar_usuario(chat_id, username)
 
     with db_temp._conectar() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT chat_id, symbol, nombre_empresa, intervalo_min, limite_inferior, limite_superior
-            FROM productos_seguidos
-            WHERE chat_id = ? AND symbol = ?
-        """,
-            (chat_id, symbol),
-        )
+        cursor.execute("SELECT chat_id, username FROM usuarios WHERE chat_id = ?", (chat_id,))
         fila = cursor.fetchone()
 
-    assert fila == (chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup)
-
+    assert fila is not None
+    assert fila[0] == chat_id
+    assert fila[1] == username
 
 def test_agregar_producto_reemplaza_si_existe(db_temp):
     chat_id = "123456"
@@ -358,20 +358,16 @@ def test_obtener_favoritas_usuario_vacia_si_no_hay_productos(db_temp):
     assert favoritas == []
 
 
-def test_guardar_y_obtener_api_key(db_temp):
-    chat_id = "123456"
-    username = "usuario_test"
-    api_key = "clave_de_prueba_ABC123"
-
-    # Primero agregamos el usuario
-    db_temp.agregar_usuario(chat_id, username)
-
-    # Guardamos la API key
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    chat_id=text(alphabet=letras_numeros, min_size=1, max_size=20),
+    api_key=text(alphabet=letras_numeros, min_size=1, max_size=50),
+)
+def test_guardar_api_key(db_temp, chat_id, api_key):
+    db_temp.agregar_usuario(chat_id, "dummy")
     db_temp.guardar_api_key(chat_id, api_key)
 
-    # Recuperamos la API key y la comparamos
     resultado = db_temp.obtener_api_key(chat_id)
-
     assert resultado == api_key
 
 
@@ -397,3 +393,4 @@ def test_obtener_historial_usuario_filtrado_por_ticker(db_temp):
     assert all(item["Símbolo"] == "AAPL" for item in historial_aapl)
     assert all("Precio" in item and "Fecha" in item for item in historial_aapl)
     assert len(historial_aapl) == 1  # Solo hay un AAPL
+

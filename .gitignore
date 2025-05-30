@@ -5,3 +5,4 @@ __pycache__/
 basedatos.db
 test_temp.db
 *cache
+.hypothesis/
