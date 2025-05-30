@@ -5,6 +5,7 @@ import pytest
 from telegram import Message, Update, User
 
 from bot.telegram_bot import (
+    PEDIR_API_KEY,
     ayuda,
     borrar_historial,
     comandos,
@@ -13,12 +14,11 @@ from bot.telegram_bot import (
     grafico,
     guardar,
     historial,
+    pedir_api_key,
     price,
+    recibir_api_key,
     seguir,
     start,
-    pedir_api_key,
-    recibir_api_key,
-    PEDIR_API_KEY,
 )
 
 # -------------------------------

@@ -23,16 +23,14 @@ jobs:
     - name: Instalar dependencias
       run: poetry install
 
-    - name: Ejecutar tests con cobertura mínima
-      run: poetry run pytest --cov=bot --cov-report=term --cov-fail-under=90
+    - name: Corregir errores con ruff
+      run: poetry run ruff check --fix .
     
+    - name: Verificar formateo con ruff format
+      run: poetry run ruff format --check .
 
     - name: Verificar tipado con mypy
       run: poetry run mypy .
 
-    - name: Verificar formato con ruff
-      run: poetry run ruff check .
-
-    - name: Verificar formateo con ruff format
-      run: poetry run ruff format --check .
-
+    - name: Ejecutar tests con cobertura mínima
+      run: poetry run pytest --cov=bot --cov-report=term --cov-fail-under=90
