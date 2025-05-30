@@ -1,7 +1,9 @@
-import matplotlib.pyplot as plt
 import io
 from datetime import datetime
-from bot.db_instance import db  # Usa tu singleton real de DB
+
+import matplotlib.pyplot as plt
+
+from bot.db_instance import db
 
 
 def generar_grafico(chat_id: str, ticker: str) -> io.BytesIO | None:
@@ -14,14 +16,8 @@ def generar_grafico(chat_id: str, ticker: str) -> io.BytesIO | None:
     fechas = [datetime.strptime(f, "%Y-%m-%d %H:%M:%S") for _, f in historial]
 
     fig, ax = plt.subplots()
-    ax.plot(
-        fechas,  # type: ignore[arg-type]
-        precios,
-        marker="o",
-        linestyle="-",
-        color="blue",
-        label=f"{ticker.upper()}",
-    )
+    ax.plot(fechas, precios, marker="o", linestyle="-", color="blue", label=f"{ticker.upper()}")  # type: ignore[arg-type]
+
     ax.set_title(f"Historial de precios - {ticker.upper()}")
     ax.set_xlabel("Fecha")
     ax.set_ylabel("Precio ($)")
