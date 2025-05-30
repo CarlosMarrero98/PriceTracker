@@ -1,0 +1,71 @@
+📌 COMANDOS IMPORTANTES – MYPY & RUFF
+======================================
+
+✅ MYPY – Comprobación de tipos estáticos
+-----------------------------------------
+
+▶️ Comprobar TODO el proyecto:
+poetry run mypy .
+
+▶️ Comprobar un archivo específico:
+poetry run mypy bot/telegram_bot.py
+
+▶️ Comprobar varios archivos:
+poetry run mypy bot/grafico.py bot/seguimiento.py
+
+
+✅ RUFF – Linter y Formateador de código
+----------------------------------------
+
+🔍 LINTING (buscar errores de estilo, bugs, imports mal ordenados, etc.)
+
+▶️ Revisar TODO el proyecto:
+poetry run ruff check .
+
+▶️ Revisar un archivo:
+poetry run ruff check bot/telegram_bot.py
+
+▶️ Revisar y corregir automáticamente:
+poetry run ruff check --fix .
+
+▶️ Ver los cambios que haría (sin aplicarlos):
+poetry run ruff check --diff .
+
+
+�� FORMATEO AUTOMÁTICO (como Black)
+
+▶️ Formatear TODO el código:
+poetry run ruff format .
+
+▶️ Formatear un archivo:
+poetry run ruff format bot/grafico.py
+
+
+✅ COMANDOS EXTRA ÚTILES
+-------------------------
+
+▶️ Ver todos los tipos de errores detectables por Ruff:
+poetry run ruff linter
+
+▶️ Ejecutar solo en tests, por ejemplo:
+poetry run mypy tests/
+poetry run ruff check tests/
+
+
+✅ OPCIONAL – Atajos en pyproject.toml
+--------------------------------------
+
+[tool.poetry.scripts]
+lint = "ruff:check"
+format = "ruff:format"
+
+▶️ Y luego puedes usar:
+poetry run lint .
+poetry run format .
+
+
+🧠 NOTA FINAL
+-------------
+- Usa `mypy` para detectar errores de tipos antes de que ocurran.
+- Usa `ruff` para mantener tu código limpio, ordenado y moderno.
+- Ambos combinados hacen tu proyecto mucho más profesional y mantenible.

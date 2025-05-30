@@ -29,6 +29,8 @@ pytest-asyncio = "^0.26.0"
 mypy = "^1.15.0"
 types-requests = "^2.32.0.20250515"
 pytest-cov = "^6.1.1"
+pandas-stubs = "^2.2.3.250527"
+ruff = "^0.11.12"
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
@@ -37,3 +39,29 @@ pythonpath = [
     "."
 ]
 
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+show_error_codes = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_configs = true
+exclude = ["tests/"]
+
+
+[tool.ruff]
+line-length = 125
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C4", "ANN"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN"]

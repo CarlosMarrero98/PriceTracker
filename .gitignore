@@ -4,3 +4,4 @@ __pycache__/
 .env
 basedatos.db
 test_temp.db
+*cache

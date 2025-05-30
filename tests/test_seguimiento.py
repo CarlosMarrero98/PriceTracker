@@ -1,7 +1,9 @@
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from bot import seguimiento
 
 

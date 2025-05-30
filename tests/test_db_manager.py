@@ -1,6 +1,8 @@
 import sqlite3
-import pytest
 import time
+
+import pytest
+
 from bot.db_manager import DatabaseManager
 
 
@@ -34,9 +36,7 @@ def test_agregar_usuario_inserta_correctamente(db_temp):
 
     with db_temp._conectar() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            "SELECT chat_id, username FROM usuarios WHERE chat_id = ?", (chat_id,)
-        )
+        cursor.execute("SELECT chat_id, username FROM usuarios WHERE chat_id = ?", (chat_id,))
         fila = cursor.fetchone()
 
     assert fila is not None
@@ -67,9 +67,7 @@ def test_agregar_producto_inserta_correctamente(db_temp):
     limite_inf = 100.0
     limite_sup = 200.0
 
-    db_temp.agregar_producto(
-        chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup
-    )
+    db_temp.agregar_producto(chat_id, symbol, nombre_empresa, intervalo, limite_inf, limite_sup)
 
     with db_temp._conectar() as conn:
         cursor = conn.cursor()
@@ -94,9 +92,7 @@ def test_agregar_producto_reemplaza_si_existe(db_temp):
     db_temp.agregar_producto(chat_id, symbol, "Apple Inc.", 15, 100.0, 200.0)
 
     # Inserción que debería reemplazar
-    db_temp.agregar_producto(
-        chat_id, symbol, "Apple Inc. Actualizado", 60, 120.0, 180.0
-    )
+    db_temp.agregar_producto(chat_id, symbol, "Apple Inc. Actualizado", 60, 120.0, 180.0)
 
     with db_temp._conectar() as conn:
         cursor = conn.cursor()
@@ -123,9 +119,7 @@ def test_obtener_productos_devuelve_lista_correcta(db_temp):
     ]
 
     for symbol, nombre, intervalo, limite_inf, limite_sup in productos:
-        db_temp.agregar_producto(
-            chat_id, symbol, nombre, intervalo, limite_inf, limite_sup
-        )
+        db_temp.agregar_producto(chat_id, symbol, nombre, intervalo, limite_inf, limite_sup)
 
     resultado = db_temp.obtener_productos(chat_id)
 
@@ -337,9 +331,7 @@ def test_obtener_favoritas_usuario_devuelve_lista_correcta(db_temp):
     ]
 
     for symbol, nombre, intervalo, limite_inf, limite_sup in productos:
-        db_temp.agregar_producto(
-            chat_id, symbol, nombre, intervalo, limite_inf, limite_sup
-        )
+        db_temp.agregar_producto(chat_id, symbol, nombre, intervalo, limite_inf, limite_sup)
 
     favoritas = db_temp.obtener_favoritas_usuario(chat_id)
 

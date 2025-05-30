@@ -8,17 +8,23 @@ Cuando un precio supera los límites definidos, el bot envía una alerta.
 
 import asyncio
 import logging
-from bot.db_instance import db
-from bot.get_price import fetch_stock_price
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import Any
+
+from telegram.ext import Application
+
+from bot.db_instance import db
+from bot.get_price import fetch_stock_price
 
 logging.basicConfig(level=logging.INFO)
 
 ultima_revision: dict[tuple[str, str], datetime] = defaultdict(lambda: datetime.min)
 
+type App = Application[Any, Any, Any, Any, Any, Any]
 
-async def lanzar_seguimiento(app):
+
+async def lanzar_seguimiento(app: App) -> None:
     """
     Lanza la tarea asincrónica que controla el seguimiento de precios.
 
@@ -30,7 +36,7 @@ async def lanzar_seguimiento(app):
     app.create_task(comprobar_alertas_periodicamente(app))
 
 
-async def comprobar_alertas_periodicamente(app) -> None:
+async def comprobar_alertas_periodicamente(app: App) -> None:
     """
     Tarea asincrónica que ejecuta el seguimiento de todos los usuarios cada 30 segundos.
 
@@ -51,7 +57,7 @@ async def comprobar_alertas_periodicamente(app) -> None:
         await asyncio.sleep(30)
 
 
-async def procesar_usuario(app, chat_id: str):
+async def procesar_usuario(app: App, chat_id: str) -> None:
     """
     Procesa todos los activos seguidos por un usuario concreto.
 
@@ -65,9 +71,7 @@ async def procesar_usuario(app, chat_id: str):
     try:
         api_key = db.obtener_api_key(chat_id)
         if not api_key:
-            logging.warning(
-                f"Usuario {chat_id} no tiene API Key registrada. Saltando alertas."
-            )
+            logging.warning(f"Usuario {chat_id} no tiene API Key registrada. Saltando alertas.")
             return
 
         productos = db.obtener_productos(chat_id)
@@ -86,7 +90,7 @@ async def procesar_usuario(app, chat_id: str):
                 logging.warning(f"Error en {symbol}: {data['error']}")
                 continue
 
-            precio_actual = data["precio"]
+            precio_actual = float(data["precio"])
             db.guardar_precio(chat_id, symbol, precio_actual)
 
             if not (limite_inf <= precio_actual <= limite_sup):
@@ -97,9 +101,7 @@ async def procesar_usuario(app, chat_id: str):
                     f"Fuera del rango: {limite_inf}$ - {limite_sup}$"
                 )
                 try:
-                    await app.bot.send_message(
-                        chat_id=chat_id, text=mensaje, parse_mode="Markdown"
-                    )
+                    await app.bot.send_message(chat_id=chat_id, text=mensaje, parse_mode="Markdown")
                     logging.info(f"✅ Alerta enviada a {chat_id}")
                 except Exception as e:
                     logging.error(f"Error al enviar mensaje a {chat_id}: {e}")

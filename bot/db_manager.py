@@ -9,8 +9,10 @@ Autor: Alejandro Pérez Escobar
 Fecha: 2024-05-22
 """
 
+import os
 import sqlite3
-from typing import List, Tuple, Optional
+from typing import cast
+
 
 class DatabaseManager:
     """
@@ -20,7 +22,7 @@ class DatabaseManager:
     centralizando la lógica de acceso a la base de datos para el bot PriceTracker.
     """
 
-    def __init__(self, db_path: str = "basedatos.db"):
+    def __init__(self, db_path: str = "data/basedatos.db") -> None:
         """
         Inicializa el gestor de base de datos, creando las tablas necesarias si no existen.
 
@@ -28,6 +30,12 @@ class DatabaseManager:
             db_path (str, optional): Ruta del archivo SQLite. Por defecto 'basedatos.db'.
         """
         self.db_path = db_path
+        # Solo intentamos crear el directorio si es una ruta real y no una base en memoria
+        if db_path != ":memory:":
+            dir_name = os.path.dirname(self.db_path)
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
+
         self._crear_tablas()
 
     def _conectar(self) -> sqlite3.Connection:
@@ -39,7 +47,7 @@ class DatabaseManager:
         """
         return sqlite3.connect(self.db_path)
 
-    def _crear_tablas(self):
+    def _crear_tablas(self) -> None:
         """
         Crea las tablas principales (usuarios, productos_seguidos, historial_precios) si no existen.
         """
@@ -82,7 +90,7 @@ class DatabaseManager:
 
     # ================== GESTIÓN DE USUARIOS Y API KEY ==================
 
-    def agregar_usuario(self, chat_id: str, username: str):
+    def agregar_usuario(self, chat_id: str, username: str) -> None:
         """
         Registra un usuario en la base de datos si no existe.
 
@@ -101,7 +109,7 @@ class DatabaseManager:
             )
             conn.commit()
 
-    def guardar_api_key(self, chat_id: str, api_key: str):
+    def guardar_api_key(self, chat_id: str, api_key: str) -> None:
         """
         Guarda o actualiza la API Key de TwelveData para el usuario.
 
@@ -115,11 +123,11 @@ class DatabaseManager:
                 """
                 UPDATE usuarios SET api_key = ? WHERE chat_id = ?
                 """,
-                (api_key, chat_id)
+                (api_key, chat_id),
             )
             conn.commit()
 
-    def obtener_api_key(self, chat_id: str) -> Optional[str]:
+    def obtener_api_key(self, chat_id: str) -> str | None:
         """
         Recupera la API Key de un usuario.
 
@@ -131,13 +139,11 @@ class DatabaseManager:
         """
         with self._conectar() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT api_key FROM usuarios WHERE chat_id = ?", (chat_id,)
-            )
+            cursor.execute("SELECT api_key FROM usuarios WHERE chat_id = ?", (chat_id,))
             result = cursor.fetchone()
             return result[0] if result else None
 
-    def obtener_usuarios(self) -> List[str]:
+    def obtener_usuarios(self) -> list[str]:
         """
         Devuelve la lista de todos los chat_id de los usuarios registrados.
 
@@ -159,7 +165,7 @@ class DatabaseManager:
         intervalo: int = 15,
         limite_inf: float = 0.0,
         limite_sup: float = 0.0,
-    ):
+    ) -> None:
         """
         Añade o actualiza un producto seguido por el usuario.
 
@@ -183,9 +189,7 @@ class DatabaseManager:
             )
             conn.commit()
 
-    def obtener_productos(
-        self, chat_id: str
-    ) -> List[Tuple[str, int, str, float, float]]:
+    def obtener_productos(self, chat_id: str) -> list[tuple[str, int, str, float, float]]:
         """
         Obtiene la lista de acciones seguidas por un usuario.
 
@@ -207,7 +211,7 @@ class DatabaseManager:
             )
             return cursor.fetchall()
 
-    def eliminar_producto(self, chat_id: str, symbol: str):
+    def eliminar_producto(self, chat_id: str, symbol: str) -> None:
         """
         Elimina una acción seguida para un usuario.
 
@@ -226,7 +230,7 @@ class DatabaseManager:
             )
             conn.commit()
 
-    def obtener_limites(self, chat_id: str, symbol: str) -> Tuple[float, float]:
+    def obtener_limites(self, chat_id: str, symbol: str) -> tuple[float, float] | None:
         """
         Recupera los límites configurados para una acción seguida por el usuario.
 
@@ -247,11 +251,13 @@ class DatabaseManager:
                 """,
                 (chat_id, symbol),
             )
-            return cursor.fetchone()
+            resultado = cursor.fetchone()
+            assert resultado is not None, f"No se encontraron límites para {symbol} del usuario {chat_id}"
+            return cast(tuple[float, float], resultado)
 
     # ================== GESTIÓN DEL HISTORIAL DE PRECIOS ==================
 
-    def guardar_precio(self, chat_id: str, symbol: str, precio: float):
+    def guardar_precio(self, chat_id: str, symbol: str, precio: float) -> None:
         """
         Guarda un nuevo precio para una acción seguida en el historial del usuario.
 
@@ -271,7 +277,7 @@ class DatabaseManager:
             )
             conn.commit()
 
-    def obtener_historial(self, chat_id: str, symbol: str) -> List[Tuple[float, str]]:
+    def obtener_historial(self, chat_id: str, symbol: str) -> list[tuple[float, str]]:
         """
         Recupera el historial de precios recientes para una acción de un usuario.
 
@@ -295,7 +301,7 @@ class DatabaseManager:
             )
             return cursor.fetchall()
 
-    def borrar_historial(self, chat_id: str, symbol: str):
+    def borrar_historial(self, chat_id: str, symbol: str) -> None:
         """
         Borra todo el historial de precios para una acción de un usuario.
 
@@ -314,9 +320,7 @@ class DatabaseManager:
             )
             conn.commit()
 
-    def obtener_estadisticas(
-        self, chat_id: str, symbol: str
-    ) -> Tuple[float, float, float]:
+    def obtener_estadisticas(self, chat_id: str, symbol: str) -> tuple[float, float, float] | None:
         """
         Calcula estadísticas básicas del historial de precios de una acción.
 
@@ -337,10 +341,12 @@ class DatabaseManager:
                 """,
                 (chat_id, symbol),
             )
-            return cursor.fetchone()
+            resultado = cursor.fetchone()
+            assert resultado is not None, f"No se encontraron precios para {symbol} del usuario {chat_id}"
+            return cast(tuple[float, float, float], resultado)
 
     # ========== Exportar historial para CSV ==========
-    def obtener_historial_usuario(self, chat_id: str, ticker: str = None) -> list:
+    def obtener_historial_usuario(self, chat_id: str, ticker: str | None = None) -> list[dict[str, str | float]]:
         """
         Devuelve todo el historial de precios de un usuario en formato lista de diccionarios.
 
@@ -363,7 +369,7 @@ class DatabaseManager:
                     WHERE chat_id = ? AND symbol = ?
                     ORDER BY timestamp ASC
                     """,
-                    (chat_id, ticker)
+                    (chat_id, ticker),
                 )
             else:
                 cursor.execute(
@@ -373,21 +379,14 @@ class DatabaseManager:
                     WHERE chat_id = ?
                     ORDER BY timestamp ASC
                     """,
-                    (chat_id,)
+                    (chat_id,),
                 )
             rows = cursor.fetchall()
-            historial = [
-                {
-                    "Símbolo": row[0],
-                    "Precio": row[1],
-                    "Fecha": row[2]
-                }
-                for row in rows
-            ]
+            historial = [{"Símbolo": row[0], "Precio": row[1], "Fecha": row[2]} for row in rows]
             return historial
 
     # ========== Exportar favoritas para CSV ==========
-    def obtener_favoritas_usuario(self, chat_id: str) -> list:
+    def obtener_favoritas_usuario(self, chat_id: str) -> list[dict[str, str | float]]:
         """
         Devuelve todas las acciones favoritas (seguidas) por el usuario como lista de diccionarios.
 
@@ -395,7 +394,8 @@ class DatabaseManager:
             chat_id (str): ID de usuario de Telegram.
 
         Returns:
-            list: Lista de diccionarios con las claves 'Símbolo', 'Nombre', 'Intervalo (min)', 'Límite Inferior' y 'Límite Superior'.
+            list: Lista de diccionarios con las claves 'Símbolo', 'Nombre', 'Intervalo (min)', 'Límite
+            Inferior' y 'Límite Superior'.
         """
         with self._conectar() as conn:
             cursor = conn.cursor()
@@ -406,7 +406,7 @@ class DatabaseManager:
                 WHERE chat_id = ?
                 ORDER BY symbol ASC
                 """,
-                (chat_id,)
+                (chat_id,),
             )
             rows = cursor.fetchall()
             favoritas = [
@@ -420,4 +420,3 @@ class DatabaseManager:
                 for row in rows
             ]
             return favoritas
-
