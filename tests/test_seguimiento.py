@@ -1,7 +1,9 @@
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from bot import seguimiento
 
 
@@ -97,3 +99,35 @@ async def test_lanzar_seguimiento_y_comprobar_alertas(monkeypatch):
     with pytest.raises(asyncio.CancelledError):
         await seguimiento.lanzar_seguimiento(app)
         await asyncio.sleep(0.1)
+
+
+@pytest.mark.asyncio
+async def test_comprobar_alertas_error_general(monkeypatch):
+    # Simula un error al obtener usuarios
+    monkeypatch.setattr("bot.seguimiento.db.obtener_usuarios", lambda: 1 / 0)
+
+    # Sleep forzado para evitar bucle infinito
+    async def fake_sleep(x):
+        raise asyncio.CancelledError()
+
+    monkeypatch.setattr("bot.seguimiento.asyncio.sleep", fake_sleep)
+
+    app = MagicMock()
+
+    with pytest.raises(asyncio.CancelledError):
+        await seguimiento.comprobar_alertas_periodicamente(app)
+
+
+@pytest.mark.asyncio
+async def test_procesar_usuario_error_general(monkeypatch):
+    # Fuerza un error al obtener la API key
+    monkeypatch.setattr("bot.seguimiento.db.obtener_api_key", lambda cid: 1 / 0)
+
+    mock_bot = MagicMock()
+    mock_bot.send_message = AsyncMock()
+    app = MagicMock()
+    app.bot = mock_bot
+
+    # No se debe lanzar error en el test, solo debe ejecutarse el except
+    await seguimiento.procesar_usuario(app, "123")
+    mock_bot.send_message.assert_not_called()
