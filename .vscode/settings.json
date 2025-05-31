@@ -1,0 +1,10 @@
+{
+    "python.analysis.exclude": [
+        "**/tests/**"
+    ],
+    "python.analysis.diagnosticMode": "openFilesOnly",
+    "python.linting.enabled": true,
+    "python.linting.mypyEnabled": true,
+    "python.linting.ruffEnabled": true,
+    "python.linting.pylintEnabled": false
+}

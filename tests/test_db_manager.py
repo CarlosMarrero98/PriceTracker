@@ -10,6 +10,7 @@ from bot.db_manager import DatabaseManager
 
 letras_numeros = characters(whitelist_categories=("Ll", "Lu", "Nd"))
 
+
 @pytest.fixture
 def db_temp():
     # Crea una única conexión en memoria y la inyecta en todos los métodos del test
@@ -30,6 +31,7 @@ def test_tablas_creadas(db_temp):
         tablas_creadas = {fila[0] for fila in cursor.fetchall()}
 
     assert tablas_esperadas.issubset(tablas_creadas)
+
 
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(
@@ -83,6 +85,7 @@ def test_agregar_usuario_inserta_correctamente(db_temp):
     assert fila is not None
     assert fila[0] == chat_id
     assert fila[1] == username
+
 
 def test_agregar_producto_reemplaza_si_existe(db_temp):
     chat_id = "123456"
@@ -393,4 +396,3 @@ def test_obtener_historial_usuario_filtrado_por_ticker(db_temp):
     assert all(item["Símbolo"] == "AAPL" for item in historial_aapl)
     assert all("Precio" in item and "Fecha" in item for item in historial_aapl)
     assert len(historial_aapl) == 1  # Solo hay un AAPL
-
