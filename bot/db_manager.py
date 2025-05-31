@@ -1,18 +1,14 @@
 """
-Módulo: db.py
+Módulo: db_manager.py
 
 Este módulo implementa el gestor de base de datos SQLite para el proyecto PriceTracker.
 Permite gestionar usuarios, API keys, productos seguidos, historial de precios y exportación a CSV.
 Compatible con bots de Telegram y preparado para documentación técnica automática.
-
-Autor: Alejandro Pérez Escobar
-Fecha: 2024-05-22
 """
 
 import os
 import sqlite3
 from typing import cast
-
 
 
 class DatabaseManager:
@@ -385,9 +381,7 @@ class DatabaseManager:
                 )
             rows = cursor.fetchall()
 
-            historial = [
-                {"Símbolo": row[0], "Precio": row[1], "Fecha": row[2]} for row in rows
-            ]
+            historial = [{"Símbolo": row[0], "Precio": row[1], "Fecha": row[2]} for row in rows]
 
             return historial
 

@@ -1,4 +1,18 @@
+"""
+Módulo: mensajes_ayuda.py
+
+Contiene funciones que devuelven textos de ayuda y comandos para el bot de Telegram.
+
+Estos textos se utilizan en los comandos `/ayuda` y `/comandos` del bot.
+"""
+
 def get_commands_text() -> str:
+    """
+    Devuelve un texto con todos los comandos disponibles del bot.
+
+    Returns:
+        str: Lista formateada en Markdown de comandos de usuario.
+    """
     return (
         "*Comandos disponibles:*\n"
         "/start - Iniciar el bot\n"
@@ -20,6 +34,12 @@ def get_commands_text() -> str:
 
 
 def get_help_text() -> str:
+    """
+    Devuelve el mensaje de ayuda detallada para nuevos usuarios.
+
+    Returns:
+        str: Mensaje explicativo con ejemplos de uso del bot.
+    """
     return (
         "ℹ️ *¿Cómo funciona el bot?*\n\n"
         "1️⃣ Usa `/start` para comenzar y registrar tu usuario.\n"

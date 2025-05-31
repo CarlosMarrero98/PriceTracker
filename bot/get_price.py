@@ -1,3 +1,10 @@
+"""
+Módulo: get_price.py
+
+Este módulo realiza peticiones a la API de Twelve Data para obtener precios y nombres
+de activos financieros. Devuelve los datos procesados o errores si los hay.
+"""
+
 import requests
 
 

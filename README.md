@@ -1,46 +1,42 @@
-# PriceTracker – Bot de Telegram para Seguir Precios de Acciones 
+# PriceTracker – Bot de Telegram para Seguir Precios de Acciones
 
-¡Bienvenido/a!   
-PriceTracker es un bot de Telegram que permite a los usuarios seguir en tiempo real el 
-precio de acciones, recibir alertas personalizadas, consultar estadísticas y exportar 
-datos históricos. Todo ello de forma automatizada y configurable, directamente desde 
-Telegram. 
+¡Bienvenido/a!
+PriceTracker es un bot de Telegram que permite a los usuarios seguir en tiempo real el
+precio de acciones, recibir alertas personalizadas, consultar estadísticas y exportar
+datos históricos. Todo ello de forma automatizada y configurable, directamente desde
+Telegram.
 **Aunque no tengas conocimientos de informática**.
 
 ---
 
+# ¿Qué es esto?
 
-# ¿Qué es esto? 
-
-PriceTracker es un programa que pone a tu disposición un “robot” en Telegram. Con él podrás: - Consultar precios de acciones (empresas de Bolsa) - Recibir avisos si sube o baja una acción - Ver el historial de precios   
+PriceTracker es un programa que pone a tu disposición un “robot” en Telegram. Con él podrás: - Consultar precios de acciones (empresas de Bolsa) - Recibir avisos si sube o baja una acción - Ver el historial de precios
 **¡Y todo desde tu móvil o PC, sin escribir comandos ni entender nada de programación!**
 
 ---
 
-
 # Características principales
 
-- Seguimiento de acciones con intervalos configurables. 
-- Notificaciones automáticas por Telegram si el precio supera límites definidos. 
-- Historial de precios con acceso a estadísticas (máximo, mínimo y media). 
-- Generación de gráficos de evolución del precio. 
-- Exportación de historial y favoritos en formato CSV. 
-- Persistencia de datos mediante SQLite y Docker Volumes. 
-- Preparado para despliegue con Docker y gestión CI/CD. 
+- Seguimiento de acciones con intervalos configurables.
+- Notificaciones automáticas por Telegram si el precio supera límites definidos.
+- Historial de precios con acceso a estadísticas (máximo, mínimo y media).
+- Generación de gráficos de evolución del precio.
+- Exportación de historial y favoritos en formato CSV.
+- Persistencia de datos mediante SQLite y Docker Volumes.
+- Preparado para despliegue con Docker y gestión CI/CD.
 
 ---
 
+# Requisitos
 
-# Requisitos 
-
-- Un ordenador(Windows, Mac o Linux) 
-- Conexión a Internet 
-- Telegram(app gratis para móvil o PC) 
-- Python(el programa que permite que funcione el bot, te enseño a instalarlo) 
-- Unos minutos para instalar y configurar 
+- Un ordenador(Windows, Mac o Linux)
+- Conexión a Internet
+- Telegram(app gratis para móvil o PC)
+- Python(el programa que permite que funcione el bot, te enseño a instalarlo)
+- Unos minutos para instalar y configurar
 
  ---
-
 
 # Stack tecnológico
 
@@ -238,7 +234,7 @@ poetry run pytest --cov=bot
 
 Puedes generar la documentación HTML con: 
 
-poetry run pdoc bot --html --output-dir docs 
+poetry run pdoc bot --output-dir docs
 
 Esto generará una carpeta docs/ con la documentación navegable. 
 

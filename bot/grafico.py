@@ -1,3 +1,12 @@
+"""
+Módulo: grafico.py
+
+Este módulo genera un gráfico PNG con el historial de precios de una acción
+seguida por el usuario, utilizando matplotlib.
+
+Se utiliza para representar visualmente la evolución del precio de un activo.
+"""
+
 import io
 from datetime import datetime
 
@@ -7,6 +16,16 @@ from bot.db_instance import db
 
 
 def generar_grafico(chat_id: str, ticker: str) -> io.BytesIO | None:
+    """
+    Genera un gráfico PNG del historial de precios de un usuario.
+
+    Args:
+        chat_id (str): ID de usuario de Telegram.
+        ticker (str): Ticker de la acción.
+
+    Returns:
+        io.BytesIO | None: Imagen PNG en memoria o None si no hay datos.
+    """
     historial = db.obtener_historial(chat_id, ticker)
 
     if not historial:

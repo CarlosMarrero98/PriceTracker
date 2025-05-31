@@ -69,4 +69,4 @@ indent-style = "space"
 line-ending = "lf"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ALL"]
+"tests/*" = ["ANN"]
