@@ -14,6 +14,7 @@ import sqlite3
 from typing import cast
 
 
+
 class DatabaseManager:
     """
     Gestor de base de datos SQLite para el seguimiento de precios de activos financieros.
@@ -383,7 +384,11 @@ class DatabaseManager:
                     (chat_id,),
                 )
             rows = cursor.fetchall()
-            historial = [{"Símbolo": row[0], "Precio": row[1], "Fecha": row[2]} for row in rows]
+
+            historial = [
+                {"Símbolo": row[0], "Precio": row[1], "Fecha": row[2]} for row in rows
+            ]
+
             return historial
 
     # ========== Exportar favoritas para CSV ==========

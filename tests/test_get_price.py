@@ -13,7 +13,9 @@ def test_api_respuesta_valida_con_precio_y_nombre(monkeypatch):
         def json(self):
             return {"close": "152.35", "name": "Apple Inc"}
 
-    monkeypatch.setattr("bot.get_price.requests.get", lambda url, timeout: MockResponse())
+    monkeypatch.setattr(
+        "bot.get_price.requests.get", lambda url, timeout: MockResponse()
+    )
     resultado = fetch_stock_price("AAPL", "fake_api_key")
     assert resultado == {"precio": 152.35, "nombre": "Apple Inc", "error": None}
 
