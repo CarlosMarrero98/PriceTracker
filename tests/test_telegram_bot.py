@@ -1,6 +1,8 @@
 import pytest
 from io import BytesIO
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock
+import matplotlib
+matplotlib.use("Agg")
 from bot.telegram_bot import (
     start,
     comandos,
@@ -13,6 +15,7 @@ from bot.telegram_bot import (
     borrar_historial,
     dejar,
     grafico,
+    media_historial
 )
 from telegram import Update, User, Message
 
@@ -685,3 +688,44 @@ async def test_exportar_favoritas_ok(monkeypatch):
     args, kwargs = update.message.reply_document.call_args
     assert kwargs["filename"] == "favoritas.csv"
     assert kwargs["caption"] == "Aquí tienes tu lista de acciones favoritas en formato CSV."
+
+
+@pytest.mark.asyncio
+@patch("bot.telegram_bot.db.obtener_estadisticas")
+async def test_media_historial_ok(mock_obtener_estadisticas):
+    mock_obtener_estadisticas.return_value = (100.0, 200.0, 150.0)
+
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    from bot.telegram_bot import media_historial
+    await media_historial(update, context)
+
+    expected_msg = (
+        "📊 Estadísticas de AAPL en tu historial:\n\n"
+        "🔻 Mínimo: 100.0 €\n"
+        "🔺 Máximo: 200.0 €\n"
+        "📈 Media: 150.0 €"
+    )
+    update.message.reply_text.assert_called_once_with(expected_msg)
+    
+@pytest.mark.asyncio
+@patch("bot.telegram_bot.db.obtener_estadisticas")
+async def test_media_historial_sin_datos(mock_obtener_estadisticas):
+    mock_obtener_estadisticas.return_value = None
+
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    from bot.telegram_bot import media_historial
+    await media_historial(update, context)
+
+    update.message.reply_text.assert_called_once_with("No tienes historial guardado para AAPL.")
