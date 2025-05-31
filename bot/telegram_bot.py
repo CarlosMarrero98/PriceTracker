@@ -565,6 +565,10 @@ async def media_historial(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """
     if update.effective_user is None or update.message is None:
         return
+    
+    if not isinstance(context.args, list) or len(context.args) != 1:
+        await update.message.reply_text("Uso correcto: /media <TICKER>\nEjemplo: /media AAPL")
+        return
 
     if len(context.args) != 1:
         await update.message.reply_text("Uso correcto: /media <TICKER>\nEjemplo: /media AAPL")
