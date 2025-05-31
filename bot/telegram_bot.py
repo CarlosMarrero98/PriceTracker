@@ -1,30 +1,24 @@
 from telegram import Update, InputFile
 from telegram.ext import (
-    CommandHandler,
-    MessageHandler,
     ContextTypes,
     ConversationHandler,
-    filters,
 )
 from bot.mensajes_ayuda import get_commands_text, get_help_text
 from bot.get_price import fetch_stock_price
 from bot.grafico import generar_grafico
 from bot.db_instance import db
-from sklearn.linear_model import LinearRegression 
-import numpy as np 
 import pandas as pd
 import io
-import aiohttp
-import datetime
 
 PEDIR_API_KEY = 1
 
 # ==================== EXPORTAR HISTORIAL CSV (todo o por ticker) ====================
 
+
 async def exportar_historial(update, context):
     """
     Exporta el historial de precios del usuario a un archivo CSV.
-    
+
     Si el usuario proporciona un ticker, solo exporta ese. Si no, exporta todo el historial.
     Envía el archivo CSV al usuario a través de Telegram.
 
@@ -37,7 +31,11 @@ async def exportar_historial(update, context):
 
     chat_id = str(update.effective_user.id)
     # Compatibilidad con tests: asegúrate de que context.args siempre es lista
-    args = list(context.args) if hasattr(context, 'args') and isinstance(context.args, (list, tuple)) else []
+    args = (
+        list(context.args)
+        if hasattr(context, "args") and isinstance(context.args, (list, tuple))
+        else []
+    )
     ticker = args[0].strip().upper() if args else None
 
     # Obtiene historial (todo o filtrado)
@@ -46,7 +44,9 @@ async def exportar_historial(update, context):
     # Si no hay historial, envía mensaje adecuado según si se filtró por ticker
     if not historial:
         if ticker:
-            await update.message.reply_text(f"No tienes historial guardado para {ticker}.")
+            await update.message.reply_text(
+                f"No tienes historial guardado para {ticker}."
+            )
         else:
             await update.message.reply_text("No tienes historial de precios aún.")
         return
@@ -60,12 +60,16 @@ async def exportar_historial(update, context):
 
     # Envía el archivo CSV al usuario
     await update.message.reply_document(
-        document=InputFile(io.BytesIO(buffer.getvalue().encode()), filename=nombre_archivo),
+        document=InputFile(
+            io.BytesIO(buffer.getvalue().encode()), filename=nombre_archivo
+        ),
         filename=nombre_archivo,
-        caption=f"Aquí tienes tu historial {'de ' + ticker if ticker else 'completo'} en formato CSV."
+        caption=f"Aquí tienes tu historial {'de ' + ticker if ticker else 'completo'} en formato CSV.",
     )
 
+
 # ==================== EXPORTAR FAVORITAS CSV ====================
+
 
 async def exportar_favoritas(update, context):
     """
@@ -94,12 +98,16 @@ async def exportar_favoritas(update, context):
     buffer.seek(0)
 
     await update.message.reply_document(
-        document=InputFile(io.BytesIO(buffer.getvalue().encode()), filename="favoritas.csv"),
+        document=InputFile(
+            io.BytesIO(buffer.getvalue().encode()), filename="favoritas.csv"
+        ),
         filename="favoritas.csv",
-        caption="Aquí tienes tu lista de acciones favoritas en formato CSV."
+        caption="Aquí tienes tu lista de acciones favoritas en formato CSV.",
     )
 
+
 # ==================== PETICIÓN Y GESTIÓN DE API KEY ====================
+
 
 async def pedir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -110,6 +118,7 @@ async def pedir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Puedes obtener una gratis en https://twelvedata.com/. Envíamela ahora:"
     )
     return PEDIR_API_KEY
+
 
 async def recibir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -127,7 +136,9 @@ async def recibir_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ConversationHandler.END
 
+
 # ==================== COMANDOS PRINCIPALES DEL BOT ====================
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -154,12 +165,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(mensaje)
 
+
 async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Envía la lista de comandos disponibles al usuario.
     """
     if update.message:
         await update.message.reply_text(get_commands_text(), parse_mode="Markdown")
+
 
 async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -168,7 +181,9 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message:
         await update.message.reply_text(get_help_text(), parse_mode="Markdown")
 
+
 # ==================== SEGUIMIENTO Y FAVORITOS ====================
+
 
 async def seguir(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -199,9 +214,7 @@ async def seguir(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             limite_inf = float(context.args[2])
             limite_sup = float(context.args[3])
     except ValueError:
-        await update.message.reply_text(
-            "Intervalo y límites deben ser válidos."
-        )
+        await update.message.reply_text("Intervalo y límites deben ser válidos.")
         return
 
     api_key = db.obtener_api_key(chat_id)
@@ -227,6 +240,7 @@ async def seguir(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"🔔 Límites configurados: {limite_inf}$ - {limite_sup}$"
     )
 
+
 async def favoritas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Lista todas las acciones favoritas/seguidas del usuario.
@@ -250,7 +264,9 @@ async def favoritas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     await update.message.reply_text(mensaje.strip(), parse_mode="Markdown")
 
+
 # ==================== CONSULTA DE PRECIOS Y GUARDADO ====================
+
 
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -285,6 +301,7 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📈 *{nombre}* ({ticker})\n💰 Precio actual: {precio:.2f}$",
         parse_mode="Markdown",
     )
+
 
 async def guardar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -327,7 +344,9 @@ async def guardar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
     )
 
+
 # ==================== HISTORIAL DE PRECIOS Y GESTIÓN ====================
+
 
 async def historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -372,6 +391,7 @@ async def historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
     )
 
+
 async def borrar_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Borra el historial de precios de una acción para el usuario.
@@ -396,7 +416,9 @@ async def borrar_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.borrar_historial(chat_id, ticker)
     await update.message.reply_text(f"🗑️ Historial de precios para {ticker} eliminado.")
 
+
 # ==================== GESTIÓN DE ACCIONES FAVORITAS ====================
+
 
 async def dejar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -423,7 +445,9 @@ async def dejar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.eliminar_producto(chat_id, ticker)
     await update.message.reply_text(f"🗑️ Has dejado de seguir {ticker}.")
 
+
 # ==================== GRÁFICO DEL HISTORIAL DE PRECIOS ====================
+
 
 async def grafico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -450,7 +474,9 @@ async def grafico(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo=InputFile(buffer), caption=f"📈 Historial de precios de {ticker}"
     )
 
+
 # ==================== MEDIA DEL HISTORIAL ====================
+
 
 async def media_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -463,7 +489,9 @@ async def media_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if len(context.args) != 1:
-        await update.message.reply_text("Uso correcto: /media <TICKER>\nEjemplo: /media AAPL")
+        await update.message.reply_text(
+            "Uso correcto: /media <TICKER>\nEjemplo: /media AAPL"
+        )
         return
 
     ticker = context.args[0].strip().upper()
@@ -473,7 +501,9 @@ async def media_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
         resultado = db.obtener_estadisticas(chat_id, ticker)
 
         if resultado is None:
-            await update.message.reply_text(f"No tienes historial guardado para {ticker}.")
+            await update.message.reply_text(
+                f"No tienes historial guardado para {ticker}."
+            )
             return
 
         minimo, maximo, media = resultado
@@ -493,4 +523,6 @@ async def media_historial(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         print(f"Error al obtener estadísticas: {e}")
-        await update.message.reply_text("Ocurrió un error al calcular las estadísticas. Inténtalo más tarde.")
+        await update.message.reply_text(
+            "Ocurrió un error al calcular las estadísticas. Inténtalo más tarde."
+        )

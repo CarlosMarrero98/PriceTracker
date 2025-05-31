@@ -1,0 +1,4 @@
+# file: /home/carlos/PriceTracker/bot/get_price.py
+# hypothesis_version: 6.131.32
+
+['close', 'error', 'message', 'name', 'nombre', 'precio']

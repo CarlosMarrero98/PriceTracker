@@ -2,9 +2,7 @@ import requests
 from typing import Dict, Optional
 
 
-def fetch_stock_price(
-    symbol: str, api_key: str
-) -> Dict[str, Optional[float | str]]:
+def fetch_stock_price(symbol: str, api_key: str) -> Dict[str, Optional[float | str]]:
     """
     Consulta el precio actual de un activo financiero usando Twelve Data.
 

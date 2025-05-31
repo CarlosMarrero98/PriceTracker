@@ -1,0 +1,4 @@
+# file: /home/carlos/PriceTracker/bot/grafico.py
+# hypothesis_version: 6.131.32
+
+['%Y-%m-%d %H:%M:%S', '-', 'Fecha', 'Precio ($)', 'blue', 'o', 'png']

@@ -1,0 +1,4 @@
+# file: /home/carlos/PriceTracker/bot/db_manager.py
+# hypothesis_version: 6.131.32
+
+[0.0, ':memory:', 'Fecha', 'Intervalo (min)', 'Límite Inferior', 'Límite Superior', 'Nombre', 'Precio', 'Símbolo', 'data/basedatos.db']

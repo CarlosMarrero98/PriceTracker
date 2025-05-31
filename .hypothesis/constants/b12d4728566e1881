@@ -1,0 +1,4 @@
+# file: /home/carlos/PriceTracker/bot/telegram_bot.py
+# hypothesis_version: 6.131.32
+
+[0.0, 3600, 'Markdown', 'args', 'error', 'favoritas.csv', 'historial.csv', 'nombre', 'precio', 'sin_nombre']

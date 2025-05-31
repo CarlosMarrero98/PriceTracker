@@ -12,17 +12,24 @@ from bot.telegram_bot import (
     grafico,
     recibir_api_key,
     PEDIR_API_KEY,
-    exportar_historial,    
-    exportar_favoritas, 
-    media_historial
+    exportar_historial,
+    exportar_favoritas,
+    media_historial,
 )
 from dotenv import load_dotenv
-from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 from bot.seguimiento import comprobar_alertas_periodicamente
 import asyncio
 import os
 
 load_dotenv()
+
 
 def prueba_telegram_bot():
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -75,14 +82,16 @@ def prueba_telegram_bot():
     app.add_handler(CommandHandler("dejar", dejar))
     app.add_handler(CommandHandler("grafico", grafico))
     app.add_handler(CommandHandler("exportar_historial", exportar_historial))
-    app.add_handler(CommandHandler("exportar_favoritas", exportar_favoritas))  
+    app.add_handler(CommandHandler("exportar_favoritas", exportar_favoritas))
     app.add_handler(CommandHandler("media", media_historial))
 
     print("✅ Bot iniciado.")
     app.run_polling()
 
+
 def main():
     prueba_telegram_bot()
+
 
 if __name__ == "__main__":
     main()

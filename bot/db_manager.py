@@ -12,6 +12,7 @@ Fecha: 2024-05-22
 import sqlite3
 from typing import List, Tuple, Optional
 
+
 class DatabaseManager:
     """
     Gestor de base de datos SQLite para el seguimiento de precios de activos financieros.
@@ -115,7 +116,7 @@ class DatabaseManager:
                 """
                 UPDATE usuarios SET api_key = ? WHERE chat_id = ?
                 """,
-                (api_key, chat_id)
+                (api_key, chat_id),
             )
             conn.commit()
 
@@ -131,9 +132,7 @@ class DatabaseManager:
         """
         with self._conectar() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT api_key FROM usuarios WHERE chat_id = ?", (chat_id,)
-            )
+            cursor.execute("SELECT api_key FROM usuarios WHERE chat_id = ?", (chat_id,))
             result = cursor.fetchone()
             return result[0] if result else None
 
@@ -363,7 +362,7 @@ class DatabaseManager:
                     WHERE chat_id = ? AND symbol = ?
                     ORDER BY timestamp ASC
                     """,
-                    (chat_id, ticker)
+                    (chat_id, ticker),
                 )
             else:
                 cursor.execute(
@@ -373,16 +372,11 @@ class DatabaseManager:
                     WHERE chat_id = ?
                     ORDER BY timestamp ASC
                     """,
-                    (chat_id,)
+                    (chat_id,),
                 )
             rows = cursor.fetchall()
             historial = [
-                {
-                    "Símbolo": row[0],
-                    "Precio": row[1],
-                    "Fecha": row[2]
-                }
-                for row in rows
+                {"Símbolo": row[0], "Precio": row[1], "Fecha": row[2]} for row in rows
             ]
             return historial
 
@@ -406,7 +400,7 @@ class DatabaseManager:
                 WHERE chat_id = ?
                 ORDER BY symbol ASC
                 """,
-                (chat_id,)
+                (chat_id,),
             )
             rows = cursor.fetchall()
             favoritas = [
@@ -420,4 +414,3 @@ class DatabaseManager:
                 for row in rows
             ]
             return favoritas
-
