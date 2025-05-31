@@ -979,3 +979,39 @@ async def test_media_historial_sin_datos(mock_obtener_estadisticas):
     await media_historial(update, context)
 
     update.message.reply_text.assert_called_once_with("No tienes historial guardado para AAPL.")
+
+@pytest.mark.asyncio
+async def test_media_historial_sin_usuario():
+    update = MagicMock(spec=Update)
+    update.effective_user = None
+    update.message = MagicMock()
+    context = MagicMock()
+
+    await media_historial(update, context)
+
+@pytest.mark.asyncio
+async def test_media_historial_args_invalidos():
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+
+    context = MagicMock()
+    context.args = ["AAPL", "EXTRA"]
+
+    await media_historial(update, context)
+    update.message.reply_text.assert_called_once_with("Uso correcto: /media <TICKER>\nEjemplo: /media AAPL")
+
+@pytest.mark.asyncio
+@patch("bot.telegram_bot.db.obtener_estadisticas", side_effect=Exception("Fallo interno"))
+async def test_media_historial_excepcion(mock_obtener):
+    update = MagicMock(spec=Update)
+    update.message = MagicMock()
+    update.message.reply_text = AsyncMock()
+    update.effective_user = MagicMock(id=1)
+
+    context = MagicMock()
+    context.args = ["AAPL"]
+
+    await media_historial(update, context)
+    update.message.reply_text.assert_called_once_with("Ocurrió un error al calcular las estadísticas. Inténtalo más tarde.")

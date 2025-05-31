@@ -6,3 +6,4 @@ basedatos.db
 test_temp.db
 *cache
 .hypothesis/
+.coverage

@@ -6,3 +6,6 @@ poetry run pytest --cov=bot --cov-report=html
 
 -- Muestra en la terminal o genera el HTML de los test concretos con covertura
 poetry run pytest "db_manager_test.py" --cov="bot.db_manager" --cov-report="term/html"
+
+-- Ejecutar tests con cobertura mínima
+poetry run pytest --cov=bot --cov-report=term --cov-fail-under=90
