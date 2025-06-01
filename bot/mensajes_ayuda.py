@@ -23,12 +23,12 @@ def get_commands_text() -> str:
         "/price <TICKER> - Precio actual\n"
         "/historial <TICKER> - Ver historial\n"
         "/guardar <TICKER> - Guardar precio actual\n"
-        "/borrar_historial <TICKER> - Borrar historial\n"
+        "/borrar\\_historial <TICKER> - Borrar historial\n"
         "/dejar <TICKER> - Dejar de seguir\n"
         "/grafico <TICKER> - Gráfico del historial\n"
-        "/exportar_historial - Exportar todo tu historial\n"
-        "/exportar_historial <TICKER> - Exportar historial de una acción\n"
-        "/exportar_favoritas - Exportar tus favoritas\n"
+        "/exportar\\_historial - Exportar todo tu historial\n"
+        "/exportar\\_historial <TICKER> - Exportar historial de una acción\n"
+        "/exportar\\_favoritas - Exportar tus favoritas\n"
         "/media <TICKER> - Media del historial de precios\n"
     )
 
